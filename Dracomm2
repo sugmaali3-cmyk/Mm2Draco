@@ -1,4 +1,3 @@
--- lang: luau | runtime: roblox client executor | target: Murder Mystery 2 (client) | ui: DracoHubThebest v2
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
@@ -49,7 +48,7 @@ local CFG = {
 	Fullbright = false,
 	WalkOn = false, WalkSpeed = 16,
 	Noclip = false,
-	AutoCandy = false,
+	AutoCandy = false, CandySpeed = 20,
 	JumpSpam = false,
 }
 
@@ -749,25 +748,28 @@ end)
 -- ==========================================================================
 
 -- ==========================================================================
--- AUTO CANDY (RUN TO COINS + NOCLIP + SPEED 19)
+-- AUTO CANDY (FLY METHOD)
 -- ==========================================================================
 local collectedItems = setmetatable({}, {__mode = "k"})
+
+local CANDY_RADIUS  = 5      -- дистанция срабатывания сбора
+local CANDY_TIMEOUT = 3.0    -- максимум летим к одной монетке, сек
+local CANDY_PAUSE   = 0.3    -- пауза после сбора одной монетки
+
+local candyBV = nil
+local candyCoin = nil
+local candyTimer = 0
 
 local function getNearestCoin()
 	local myRoot = getRoot()
 	if not myRoot then return nil end
-	local closest = nil
-	local minDist = 100 
-
+	local closest, minDist = nil, 150
 	for _, obj in ipairs(workspace:GetDescendants()) do
 		if obj.Name:lower():find("coincontainer") then
 			for _, item in ipairs(obj:GetChildren()) do
 				if item:IsA("BasePart") and not collectedItems[item] then
-					local dist = (item.Position - myRoot.Position).Magnitude
-					if dist < minDist then
-						minDist = dist
-						closest = item
-					end
+					local d = (item.Position - myRoot.Position).Magnitude
+					if d < minDist then closest, minDist = item, d end
 				end
 			end
 		end
@@ -775,47 +777,75 @@ local function getNearestCoin()
 	return closest
 end
 
+local function stopCandyFly()
+	if candyBV then candyBV:Destroy(); candyBV = nil end
+	candyCoin = nil
+	candyTimer = 0
+end
+
+local function startCandyFly()
+	stopCandyFly()
+	local root = getRoot()
+	if not root then return end
+	local bv = Instance.new("BodyVelocity")
+	bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
+	bv.Velocity = Vector3.zero
+	bv.Parent = root
+	candyBV = bv
+end
+
 task.spawn(function()
 	while running do
 		if CFG.AutoCandy then
 			local char = LP.Character
 			local hum = char and char:FindFirstChildOfClass("Humanoid")
-			
-			if char and hum then
-				hum.WalkSpeed = 19
-				
+			local root = char and char:FindFirstChild("HumanoidRootPart")
+
+			if char and hum and hum.Health > 0 and root and not flingConn then
+				-- отключаем коллизии, чтобы пролетать сквозь стены
 				for _, p in ipairs(char:GetDescendants()) do
-					if p:IsA("BasePart") then
-						p.CanCollide = false
-					end
+					if p:IsA("BasePart") then p.CanCollide = false end
 				end
 
+				if not candyBV or candyBV.Parent ~= root then startCandyFly() end
+
 				local coin = getNearestCoin()
-				
-				if coin then
-					hum:MoveTo(coin.Position)
-					
-					local timer = 0
-					while running and CFG.AutoCandy and timer < 2 do
-						task.wait(0.1)
-						timer = timer + 0.1
-						
-						if (coin.Position - hum.Parent.HumanoidRootPart.Position).Magnitude < 5 then
-							if firetouchinterest then
-								pcall(firetouchinterest, hum.Parent.HumanoidRootPart, coin, 0)
-								task.wait(0.05)
-								pcall(firetouchinterest, hum.Parent.HumanoidRootPart, coin, 1)
-							end
-							collectedItems[coin] = true
-							break
+				if coin and candyBV then
+					if coin ~= candyCoin then candyCoin = coin; candyTimer = 0 end
+					candyTimer += 0.05
+
+					local delta = coin.Position - root.Position
+					local dist = delta.Magnitude
+
+					if dist <= CANDY_RADIUS then
+						candyBV.Velocity = Vector3.zero
+						if firetouchinterest then
+							pcall(firetouchinterest, root, coin, 0)
+							task.wait(0.01)
+							pcall(firetouchinterest, root, coin, 1)
 						end
+						collectedItems[coin] = true
+						candyCoin = nil; candyTimer = 0
+						task.wait(CANDY_PAUSE)
+					elseif candyTimer >= CANDY_TIMEOUT then
+						-- монетка недостижима — пропускаем, чтобы не зациклиться
+						candyBV.Velocity = Vector3.zero
+						collectedItems[coin] = true
+						candyCoin = nil; candyTimer = 0
+					else
+						candyBV.Velocity = delta.Unit * CFG.CandySpeed
 					end
 				else
-					task.wait(0.5)
+					if candyBV then candyBV.Velocity = Vector3.zero end
+					candyCoin = nil; candyTimer = 0
 				end
+			else
+				stopCandyFly()
 			end
+		else
+			stopCandyFly()
 		end
-		task.wait(0.1)
+		task.wait(0.05)
 	end
 end)
 -- ==========================================================================
@@ -885,7 +915,6 @@ local c5 = card(pages["Fling"], "Fling")
 toggle(c5, "Fling (Nearest)", "Fling")
 toggle(c5, "Fling All (One by one)", "FlingAll")
 toggle(c5, "Anti-Fling", "AntiFling")
--- CHANGED SLIDER (1-100 WITH x10000 MULTIPLIER)
 slider(c5, "Fling Power", "FlingPowerUI", 1, 100, "", function(v) CFG.FlingPower = v * 10000 end)
 slider(c5, "Duration", "FlingTime", 1, 30, "s")
 slider(c5, "Distance", "FlingRange", 5, 80, "st")
@@ -927,8 +956,9 @@ local cMove = card(pages["Player"], "Movement")
 toggle(cMove, "Noclip", "Noclip", function(on) if not on then setNoclip(false) end end)
 toggle(cMove, "Jump Spam (0.5s)", "JumpSpam")
 
-local cCandy = card(pages["Misc"], "Candy")
+local cCandy = card(pages["Misc"], "Candy (Fly)")
 toggle(cCandy, "Auto Collect Candy/Coin", "AutoCandy")
+slider(cCandy, "Fly Speed", "CandySpeed", 5, 60, "")
 
 local c7 = card(pages["Misc"], "Key")
 toggle(c7, "Auto Load Key", "AutoLoadKey")
@@ -986,7 +1016,7 @@ task.spawn(function() while running and roleLbl.Parent do local r = roleOf(LP); 
 
 unload = function()
 	running = false
-	stopFling(); restoreKnife()
+	stopFling(); stopCandyFly(); restoreKnife()
 	if lightOrig then applyFullbright(false) end
 	for _, c in ipairs(conns) do c:Disconnect() end
 	blur:Destroy(); gui:Destroy()

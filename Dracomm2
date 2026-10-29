@@ -34,7 +34,7 @@ local KEY_FILE = "dracohub_key.txt"
 
 local CFG = {
 	ESP = false, ESPRole = true,
-	Aimbot = false, AimFOV = 150, AimSmooth = 35, AimHoldRMB = true, ShowFOV = true,
+	Aimbot = false, AimFOV = 150, AimSmooth = 35, AimHoldRMB = false, ShowFOV = false,
 	Fling = false, FlingPower = 1000000, FlingPowerUI = 100, FlingTime = 12, FlingRange = 60,
 	FlingMurd = false, FlingSheriff = false, FlingAll = false,
 	AntiFling = false,
@@ -53,7 +53,7 @@ local CFG = {
 	JumpSpam = false,
 }
 
-local running = true
+local running = false
 local isOpen = false
 local conns = {}
 local regs = {}
@@ -889,7 +889,7 @@ local c5 = card(pages["Флинг"], "Флинг")
 toggle(c5, "Fling (ближайший)", "Fling")
 toggle(c5, "Fling All (по очереди)", "FlingAll")
 toggle(c5, "Anti-fling", "AntiFling")
-slider(c5, "Сила (x10000)", "FlingPowerUI", 1, 100, "", function(v) CFG.FlingPower = v * 10000 end)
+slider(c5, "Fling power", "FlingPowerUI", 1, 100, "", function(v) CFG.FlingPower = v * 10000 end)
 slider(c5, "Время", "FlingTime", 1, 30, "с")
 slider(c5, "Дистанция", "FlingRange", 5, 80, "st")
 

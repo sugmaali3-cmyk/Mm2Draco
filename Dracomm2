@@ -34,7 +34,7 @@ local KEY_FILE = "dracohub_key.txt"
 
 local CFG = {
 	ESP = false, ESPRole = true,
-	Aimbot = false, AimFOV = 150, AimSmooth = 35, AimHoldRMB = false, ShowFOV = false,
+	Aimbot = false, AimFOV = 150, AimSmooth = 35, AimHoldRMB = true, ShowFOV = true,
 	Fling = false, FlingPower = 1000000, FlingPowerUI = 100, FlingTime = 12, FlingRange = 60,
 	FlingMurd = false, FlingSheriff = false, FlingAll = false,
 	AntiFling = false,
@@ -53,7 +53,7 @@ local CFG = {
 	JumpSpam = false,
 }
 
-local running = false
+local running = true
 local isOpen = false
 local conns = {}
 local regs = {}
@@ -160,8 +160,8 @@ local roleColors = {Murderer = T.Murd, Sheriff = T.Sher, Innocent = T.Good}
 local function checkKey(k)
 	k = (k or ""):gsub("%s+", "")
 	local exp = KEY_DB[k]
-	if exp == nil then return false, "неверный ключ" end
-	if exp ~= 0 and os.time() > exp then return false, "ключ истёк" end
+	if exp == nil then return false, "invalid key" end
+	if exp ~= 0 and os.time() > exp then return false, "key expired" end
 	return true, k
 end
 
@@ -273,7 +273,7 @@ local function setTab(name, idx)
 	tween(indicator, 0.45, {Position = UDim2.fromOffset(4, 64 + (idx - 1) * 36)}, Enum.EasingStyle.Back)
 end
 
-local tabNames = {"Визуал", "Бой", "Игрок", "Флинг", "Разное", "Система"}
+local tabNames = {"Visuals", "Combat", "Player", "Fling", "Misc", "Settings"}
 
 for i, name in ipairs(tabNames) do
 	local b = make("TextButton", {Size = UDim2.new(1, -12, 0, 32), Position = UDim2.fromOffset(6, 56 + (i - 1) * 36), BackgroundTransparency = 1, AutoButtonColor = false, BorderSizePixel = 0, Text = ""}, sidebar)
@@ -395,9 +395,9 @@ end
 -- ESP
 -- ==========================================================================
 
-local c1 = card(pages["Визуал"], "ESP")
+local c1 = card(pages["Visuals"], "ESP")
 toggle(c1, "ESP", "ESP")
-toggle(c1, "Показывать роли", "ESPRole")
+toggle(c1, "Show Roles", "ESPRole")
 
 local espStore = {}
 local function clearESP(plr)
@@ -457,7 +457,7 @@ local function aimHead()
 end
 
 -- ==========================================================================
--- FLING ЯДРО
+-- FLING CORE
 -- ==========================================================================
 
 local flingTarget = nil
@@ -586,7 +586,7 @@ task.spawn(function()
 		if CFG.Fling and not CFG.FlingAll and not CFG.FlingMurd and not CFG.FlingSheriff and flingConn and os.clock() - flingStartT > CFG.FlingTime then
 			if toggleApply.Fling then toggleApply.Fling(false, true) end
 			stopFling()
-			notify("fling: время вышло", T.Accent2)
+			notify("fling: time expired", T.Accent2)
 		end
 		task.wait(0.1)
 	end
@@ -641,7 +641,7 @@ track(RunService.Heartbeat:Connect(function()
 end))
 
 -- ==========================================================================
--- ЦИКЛ ОБНОВЛЕНИЯ ВИЗУАЛОВ
+-- VISUALS LOOP
 -- ==========================================================================
 
 task.spawn(function()
@@ -749,7 +749,7 @@ end)
 -- ==========================================================================
 
 -- ==========================================================================
--- AUTO CANDY (НОВЫЙ МЕТОД: БЕГ К МОНЕТАМ + NOCLIP + SPEED 19)
+-- AUTO CANDY (RUN TO COINS + NOCLIP + SPEED 19)
 -- ==========================================================================
 local collectedItems = setmetatable({}, {__mode = "k"})
 
@@ -757,7 +757,7 @@ local function getNearestCoin()
 	local myRoot = getRoot()
 	if not myRoot then return nil end
 	local closest = nil
-	local minDist = 100 -- Радиус поиска
+	local minDist = 100 
 
 	for _, obj in ipairs(workspace:GetDescendants()) do
 		if obj.Name:lower():find("coincontainer") then
@@ -782,9 +782,8 @@ task.spawn(function()
 			local hum = char and char:FindFirstChildOfClass("Humanoid")
 			
 			if char and hum then
-				hum.WalkSpeed = 19 -- Поставил скорость 19 как ты просил
+				hum.WalkSpeed = 19
 				
-				-- Встроенный Noclip
 				for _, p in ipairs(char:GetDescendants()) do
 					if p:IsA("BasePart") then
 						p.CanCollide = false
@@ -794,16 +793,13 @@ task.spawn(function()
 				local coin = getNearestCoin()
 				
 				if coin then
-					-- Бежим к монете
 					hum:MoveTo(coin.Position)
 					
-					-- Ждем, пока подбежим
 					local timer = 0
 					while running and CFG.AutoCandy and timer < 2 do
 						task.wait(0.1)
 						timer = timer + 0.1
 						
-						-- Если подбежали близко (касание)
 						if (coin.Position - hum.Parent.HumanoidRootPart.Position).Magnitude < 5 then
 							if firetouchinterest then
 								pcall(firetouchinterest, hum.Parent.HumanoidRootPart, coin, 0)
@@ -825,7 +821,7 @@ end)
 -- ==========================================================================
 
 -- ==========================================================================
--- JUMP SPAM (ПРЫЖОК КАЖДЫЕ 0.5 СЕК)
+-- JUMP SPAM (EVERY 0.5S)
 -- ==========================================================================
 task.spawn(function()
 	while running do
@@ -843,11 +839,11 @@ end)
 
 -- UI Cards -----------------------------------------------------------------
 
-local cP = card(pages["Визуал"], "Player")
-toggle(cP, "Player forcefield", "PlayerFF")
-toggle(cP, "Оранжевый", "PlayerFFOrange")
+local cP = card(pages["Visuals"], "Player")
+toggle(cP, "Player Forcefield", "PlayerFF")
+toggle(cP, "Orange Color", "PlayerFFOrange")
 
-local cK = card(pages["Визуал"], "Knife visual")
+local cK = card(pages["Visuals"], "Knife Visual")
 local modeRow = make("Frame", {Size = UDim2.new(1, 0, 0, 30), BackgroundTransparency = 1, LayoutOrder = nextOrder(cK)}, cK)
 make("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder}, modeRow)
 
@@ -855,50 +851,51 @@ local modeBtns = {}
 local function setMode(m, silent)
 	CFG.KnifeMode = m
 	for id, b in pairs(modeBtns) do tween(b, 0.25, {BackgroundColor3 = id == m and T.Accent or T.Off}) end
-	if not silent then local names = {off = "нож: выкл", ff = "нож: forcefield", orange = "нож: orange forcefield"}; notify(names[m], T.Accent2) end
+	if not silent then local names = {off = "knife: off", ff = "knife: forcefield", orange = "knife: orange forcefield"}; notify(names[m], T.Accent2) end
 end
 
-local modes = {{id = "off", label = "Выкл"}, {id = "ff", label = "Forcefield"}, {id = "orange", label = "Orange FF"}}
+local modes = {{id = "off", label = "Off"}, {id = "ff", label = "Forcefield"}, {id = "orange", label = "Orange FF"}}
 for i, m in ipairs(modes) do
 	local b = make("TextButton", {Size = UDim2.new(1 / #modes, -4, 1, 0), BackgroundColor3 = T.Off, BackgroundTransparency = 0.1, AutoButtonColor = false, BorderSizePixel = 0, LayoutOrder = i, Text = m.label, Font = T.FontBold, TextSize = 11, TextColor3 = T.Text}, modeRow)
 	radius(b, 8); squish(b); modeBtns[m.id] = b; b.MouseButton1Click:Connect(function() setMode(m.id) end)
 end
 setMode(CFG.KnifeMode, true)
 
-local c2 = card(pages["Бой"], "Aimbot")
-toggle(c2, "Aimbot", "Aimbot"); toggle(c2, "Только при ПКМ", "AimHoldRMB"); toggle(c2, "Показать FOV", "ShowFOV")
-slider(c2, "FOV", "AimFOV", 30, 400, "px"); slider(c2, "Плавность", "AimSmooth", 1, 100, "%")
+local c2 = card(pages["Combat"], "Aimbot")
+toggle(c2, "Aimbot", "Aimbot"); toggle(c2, "Hold RMB", "AimHoldRMB"); toggle(c2, "Show FOV", "ShowFOV")
+slider(c2, "FOV", "AimFOV", 30, 400, "px"); slider(c2, "Smoothness", "AimSmooth", 1, 100, "%")
 
-local c3 = card(pages["Бой"], "Убийство")
-slider(c3, "Задержка", "KillDelay", 0, 10, "с")
+local c3 = card(pages["Combat"], "Kill")
+slider(c3, "Delay", "KillDelay", 0, 10, "s")
 
-local cS = card(pages["Бой"], "Shoot")
-local shootMurderBtn = make("TextButton", {Size = UDim2.new(1, 0, 0, 32), BackgroundColor3 = Color3.fromRGB(22, 22, 27), BackgroundTransparency = 0.05, AutoButtonColor = false, BorderSizePixel = 0, LayoutOrder = 10, Text = "Shoot Murder", Font = T.FontBold, TextSize = 13, TextColor3 = T.Text}, cS)
+local cS = card(pages["Combat"], "Shoot")
+local shootMurderBtn = make("TextButton", {Size = UDim2.new(1, 0, 0, 32), BackgroundColor3 = Color3.fromRGB(22, 22, 27), BackgroundTransparency = 0.05, AutoButtonColor = false, BorderSizePixel = 0, LayoutOrder = 10, Text = "Shoot Murderer", Font = T.FontBold, TextSize = 13, TextColor3 = T.Text}, cS)
 radius(shootMurderBtn, 9); stroke(shootMurderBtn, 0.75); squish(shootMurderBtn)
 
 local floatShoot = make("TextButton", {Size = UDim2.fromOffset(120, 36), Position = UDim2.new(0, 16, 0.45, 0), BackgroundColor3 = Color3.fromRGB(22, 22, 27), BackgroundTransparency = 0.05, AutoButtonColor = false, BorderSizePixel = 0, Visible = false, Text = "Shoot", Font = T.FontBold, TextSize = 14, TextColor3 = T.Text}, gui)
 radius(floatShoot, 9); stroke(floatShoot, 0.75); squish(floatShoot)
 floatShoot.MouseButton1Click:Connect(function() local plr = findRole("Murderer"); if plr and plr.Character then local gun = hasGun(); if gun then gun:Activate() end end end)
-shootMurderBtn.MouseButton1Click:Connect(function() floatShoot.Visible = not floatShoot.Visible; shootMurderBtn.Text = floatShoot.Visible and "Скрыть Shoot" or "Shoot Murder" end)
+shootMurderBtn.MouseButton1Click:Connect(function() floatShoot.Visible = not floatShoot.Visible; shootMurderBtn.Text = floatShoot.Visible and "Hide Shoot" or "Shoot Murderer" end)
 
-local c4 = card(pages["Игрок"], "Роль")
+local c4 = card(pages["Player"], "Role")
 local roleLbl = make("TextLabel", {Size = UDim2.new(1, 0, 0, 24), BackgroundTransparency = 1, LayoutOrder = 1, Text = "Innocent", Font = T.FontBold, TextSize = 18, TextColor3 = T.Good, TextXAlignment = Enum.TextXAlignment.Left}, c4)
-toggle(c4, "Авто-пистолет (касаться GunDrop)", "AutoGun")
+toggle(c4, "Auto Gun (Touch GunDrop)", "AutoGun")
 
-local c5 = card(pages["Флинг"], "Флинг")
-toggle(c5, "Fling (ближайший)", "Fling")
-toggle(c5, "Fling All (по очереди)", "FlingAll")
-toggle(c5, "Anti-fling", "AntiFling")
-slider(c5, "Fling power", "FlingPowerUI", 1, 100, "", function(v) CFG.FlingPower = v * 10000 end)
-slider(c5, "Время", "FlingTime", 1, 30, "с")
-slider(c5, "Дистанция", "FlingRange", 5, 80, "st")
+local c5 = card(pages["Fling"], "Fling")
+toggle(c5, "Fling (Nearest)", "Fling")
+toggle(c5, "Fling All (One by one)", "FlingAll")
+toggle(c5, "Anti-Fling", "AntiFling")
+-- CHANGED SLIDER (1-100 WITH x10000 MULTIPLIER)
+slider(c5, "Fling Power", "FlingPowerUI", 1, 100, "", function(v) CFG.FlingPower = v * 10000 end)
+slider(c5, "Duration", "FlingTime", 1, 30, "s")
+slider(c5, "Distance", "FlingRange", 5, 80, "st")
 
-local cR = card(pages["Флинг"], "Флинг по роли")
+local cR = card(pages["Fling"], "Fling by Role")
 toggle(cR, "Fling Murderer", "FlingMurd"); toggle(cR, "Fling Sheriff", "FlingSheriff")
 
-local c6 = card(pages["Флинг"], "Touch fling")
-toggle(c6, "Touch fling", "TouchFling")
-slider(c6, "Радиус касания", "TouchRange", 2, 20, "st")
+local c6 = card(pages["Fling"], "Touch Fling")
+toggle(c6, "Touch Fling", "TouchFling")
+slider(c6, "Touch Radius", "TouchRange", 2, 20, "st")
 
 local lightOrig = nil
 local function applyFullbright(on)
@@ -907,9 +904,9 @@ local function applyFullbright(on)
 	else for k, v in pairs(lightOrig) do Lighting[k] = v end end
 end
 
-local cMisc = card(pages["Разное"], "Игрок+")
-toggle(cMisc, "Fullbright (светло везде)", "Fullbright", applyFullbright)
-toggle(cMisc, "Скорость ходьбы", "WalkOn")
+local cMisc = card(pages["Misc"], "Player+")
+toggle(cMisc, "Fullbright", "Fullbright", applyFullbright)
+toggle(cMisc, "Walk Speed", "WalkOn")
 slider(cMisc, "WalkSpeed", "WalkSpeed", 16, 300, "")
 
 task.spawn(function() while running do local c = LP.Character; local hum = c and c:FindFirstChildOfClass("Humanoid"); if hum and CFG.WalkOn and hum.WalkSpeed ~= CFG.WalkSpeed then hum.WalkSpeed = CFG.WalkSpeed end; task.wait(0.2) end end)
@@ -926,21 +923,21 @@ local function setNoclip(on)
 end
 track(RunService.Stepped:Connect(function() if not running or not CFG.Noclip or flingConn then return end; local c = LP.Character; if not c then return end; for _, p in ipairs(c:GetDescendants()) do if p:IsA("BasePart") and p.CanCollide then if noclipSaved[p] == nil then noclipSaved[p] = true end; p.CanCollide = false end end end))
 
-local cMove = card(pages["Игрок"], "Движение")
-toggle(cMove, "Noclip (сквозь стены)", "Noclip", function(on) if not on then setNoclip(false) end end)
-toggle(cMove, "Jump Spam (каждые 0.5с)", "JumpSpam")
+local cMove = card(pages["Player"], "Movement")
+toggle(cMove, "Noclip", "Noclip", function(on) if not on then setNoclip(false) end end)
+toggle(cMove, "Jump Spam (0.5s)", "JumpSpam")
 
-local cCandy = card(pages["Разное"], "Candy")
-toggle(cCandy, "Auto collect candy/coin", "AutoCandy")
+local cCandy = card(pages["Misc"], "Candy")
+toggle(cCandy, "Auto Collect Candy/Coin", "AutoCandy")
 
-local c7 = card(pages["Разное"], "Ключ")
-toggle(c7, "Автовход по ключу", "AutoLoadKey")
-button(c7, "Очистить сохранённый ключ", function() clearKey(); notify("ключ удалён", T.Bad) end)
+local c7 = card(pages["Misc"], "Key")
+toggle(c7, "Auto Load Key", "AutoLoadKey")
+button(c7, "Clear Saved Key", function() clearKey(); notify("key deleted", T.Bad) end)
 
-local c8 = card(pages["Система"], "Интерфейс")
-slider(c8, "Прозрачность", "Transp", 0, 80, "%", applyTransp)
-button(c8, "Скрыть меню (RShift)", function() setVisible(false) end)
-button(c8, "Выгрузить скрипт", function() unload() end)
+local c8 = card(pages["Settings"], "Interface")
+slider(c8, "Transparency", "Transp", 0, 80, "%", applyTransp)
+button(c8, "Hide Menu (RShift)", function() setVisible(false) end)
+button(c8, "Unload Script", function() unload() end)
 
 -- Main Logic ---------------------------------------------------------------
 
@@ -950,7 +947,7 @@ local openGlow = make("UIStroke", {Color = T.Accent2, Thickness = 2, Transparenc
 local openScale = make("UIScale", {}, openBtn)
 local openDot = make("Frame", {Size = UDim2.fromOffset(7, 7), Position = UDim2.fromOffset(14, 11.5), BackgroundColor3 = Color3.new(1, 1, 1), BorderSizePixel = 0}, openBtn)
 radius(openDot, 4)
-local openLbl = make("TextLabel", {Size = UDim2.new(1, -32, 1, 0), Position = UDim2.fromOffset(28, 0), BackgroundTransparency = 1, Text = "Открыть", Font = T.FontBold, TextSize = 12, TextColor3 = Color3.new(1, 1, 1), TextXAlignment = Enum.TextXAlignment.Left}, openBtn)
+local openLbl = make("TextLabel", {Size = UDim2.new(1, -32, 1, 0), Position = UDim2.fromOffset(28, 0), BackgroundTransparency = 1, Text = "Open", Font = T.FontBold, TextSize = 12, TextColor3 = Color3.new(1, 1, 1), TextXAlignment = Enum.TextXAlignment.Left}, openBtn)
 
 openBtn.MouseEnter:Connect(function() tween(openScale, 0.2, {Scale = 1.06}); tween(openGlow, 0.2, {Transparency = 0}) end)
 openBtn.MouseLeave:Connect(function() tween(openScale, 0.3, {Scale = 1}, Enum.EasingStyle.Back); tween(openGlow, 0.3, {Transparency = 0.45}) end)
@@ -960,7 +957,7 @@ task.spawn(function() while running and openDot.Parent do tween(openDot, 0.9, {B
 setVisible = function(v)
 	if v and not CFG.KeyUnlocked then return end
 	isOpen = v
-	openLbl.Text = v and "Закрыть" or "Открыть"
+	openLbl.Text = v and "Close" or "Open"
 	if v then
 		main.Visible = true; blur.Enabled = true; mainScale.Scale = 0.85
 		tween(mainScale, 0.45, {Scale = 1}, Enum.EasingStyle.Back); tween(blur, 0.3, {Size = 12})
@@ -995,32 +992,32 @@ unload = function()
 	blur:Destroy(); gui:Destroy()
 end
 
-setTab("Визуал", 1)
+setTab("Visuals", 1)
 
 -- Key Gate -----------------------------------------------------------------
 local gate = panel(gui, 16, T.Panel, 0.04)
 gate.Size = UDim2.fromOffset(340, 214); gate.AnchorPoint = Vector2.new(0.5, 0.5); gate.Position = UDim2.fromScale(0.5, 0.5)
 local gateScale = make("UIScale", {}, gate)
 
-make("TextLabel", {Size = UDim2.new(1, -40, 0, 22), Position = UDim2.fromOffset(20, 18), BackgroundTransparency = 1, Text = "Доступ к Draco Hub", Font = T.FontBold, TextSize = 16, TextColor3 = T.Text, TextXAlignment = Enum.TextXAlignment.Left}, gate)
-make("TextLabel", {Size = UDim2.new(1, -40, 0, 14), Position = UDim2.fromOffset(20, 40), BackgroundTransparency = 1, Text = "введи лицензионный ключ", Font = T.Font, TextSize = 11, TextColor3 = T.Sub, TextXAlignment = Enum.TextXAlignment.Left}, gate)
+make("TextLabel", {Size = UDim2.new(1, -40, 0, 22), Position = UDim2.fromOffset(20, 18), BackgroundTransparency = 1, Text = "Draco Hub Access", Font = T.FontBold, TextSize = 16, TextColor3 = T.Text, TextXAlignment = Enum.TextXAlignment.Left}, gate)
+make("TextLabel", {Size = UDim2.new(1, -40, 0, 14), Position = UDim2.fromOffset(20, 40), BackgroundTransparency = 1, Text = "Enter license key", Font = T.Font, TextSize = 11, TextColor3 = T.Sub, TextXAlignment = Enum.TextXAlignment.Left}, gate)
 
 local keyBox = make("TextBox", {Size = UDim2.new(1, -40, 0, 38), Position = UDim2.fromOffset(20, 76), BackgroundColor3 = T.Card, BackgroundTransparency = 0.1, BorderSizePixel = 0, Text = "", PlaceholderText = "DRACO-XXXX-XXXX", PlaceholderColor3 = T.Sub, Font = T.FontBold, TextSize = 13, TextColor3 = T.Text, ClearTextOnFocus = false, TextXAlignment = Enum.TextXAlignment.Left}, gate)
 radius(keyBox, 9); make("UIPadding", {PaddingLeft = UDim.new(0, 12)}, keyBox)
 
 local gateMsg = make("TextLabel", {Size = UDim2.new(1, -40, 0, 14), Position = UDim2.fromOffset(20, 118), BackgroundTransparency = 1, Text = "", Font = T.Font, TextSize = 10, TextColor3 = T.Bad, TextXAlignment = Enum.TextXAlignment.Left}, gate)
-local checkBtn = make("TextButton", {Size = UDim2.new(1, -40, 0, 36), Position = UDim2.fromOffset(20, 142), BackgroundColor3 = T.Accent, AutoButtonColor = false, BorderSizePixel = 0, Text = "Проверить", Font = T.FontBold, TextSize = 12, TextColor3 = Color3.new(1, 1, 1)}, gate)
+local checkBtn = make("TextButton", {Size = UDim2.new(1, -40, 0, 36), Position = UDim2.fromOffset(20, 142), BackgroundColor3 = T.Accent, AutoButtonColor = false, BorderSizePixel = 0, Text = "Check", Font = T.FontBold, TextSize = 12, TextColor3 = Color3.new(1, 1, 1)}, gate)
 radius(checkBtn, 9); make("UIGradient", {Color = ColorSequence.new(T.Accent, T.Accent2), Rotation = 90}, checkBtn); squish(checkBtn)
 
 local function unlockMain()
 	CFG.KeyUnlocked = true
 	if gate.Parent then tween(gateScale, 0.25, {Scale = 0.85}, Enum.EasingStyle.Quad, Enum.EasingDirection.In); task.delay(0.25, function() gate:Destroy() end) end
-	openBtn.Visible = true; notify("добро пожаловать", T.Good); setVisible(true)
+	openBtn.Visible = true; notify("welcome", T.Good); setVisible(true)
 end
 
 local function tryKey(k)
 	local ok, res = checkKey(k)
-	if ok then gateMsg.TextColor3 = T.Good; gateMsg.Text = "ключ принят"; saveKey(res); task.delay(0.3, unlockMain)
+	if ok then gateMsg.TextColor3 = T.Good; gateMsg.Text = "key accepted"; saveKey(res); task.delay(0.3, unlockMain)
 	else gateMsg.TextColor3 = T.Bad; gateMsg.Text = res
 		tween(gate, 0.05, {Position = UDim2.new(0.5, 6, 0.5, 0)})
 		task.delay(0.05, function() tween(gate, 0.05, {Position = UDim2.new(0.5, -6, 0.5, 0)}) end)
@@ -1035,7 +1032,7 @@ if CFG.AutoLoadKey then
 	local saved = loadKey()
 	if saved then
 		local ok, res = checkKey(saved)
-		if ok then keyBox.Text = res; gateMsg.TextColor3 = T.Good; gateMsg.Text = "ключ найден, вход..."; task.delay(0.4, unlockMain)
+		if ok then keyBox.Text = res; gateMsg.TextColor3 = T.Good; gateMsg.Text = "key found, logging in..."; task.delay(0.4, unlockMain)
 		else clearKey() end
 	end
 end

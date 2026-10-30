@@ -5,7 +5,6 @@ local TweenService = game:GetService("TweenService")
 local Lighting = game:GetService("Lighting")
 local Stats = game:GetService("Stats")
 local CoreGui = game:GetService("CoreGui")
-
 local LP = Players.LocalPlayer
 
 local T = {
@@ -50,6 +49,7 @@ local CFG = {
 	Noclip = false,
 	AutoCandy = false, CandySpeed = 20,
 	JumpSpam = false,
+	Wallbang = false,
 }
 
 local running = true
@@ -362,6 +362,7 @@ local function button(parent, label, cb)
 end
 
 local function getRoot() local c = LP.Character; return c and c:FindFirstChild("HumanoidRootPart") end
+local function getHum() local c = LP.Character; return c and c:FindFirstChildOfClass("Humanoid") end
 local function alive(plr) local c = plr.Character; local hum = c and c:FindFirstChildOfClass("Humanoid"); return c, hum and hum.Health > 0 end
 
 local function nearestOther(maxDist)
@@ -456,46 +457,134 @@ local function aimHead()
 end
 
 -- ==========================================================================
--- FLING CORE
+-- СИСТЕМА СТРЕЛЬБЫ И WALLBANG
+-- ==========================================================================
+
+local function getGun()
+	local char = LP.Character
+	local bp = LP:FindFirstChildOfClass("Backpack")
+	return (char and char:FindFirstChild("Gun")) or (bp and bp:FindFirstChild("Gun")) or nil
+end
+
+local function equipGun()
+	local char = LP.Character
+	local hum = getHum()
+	local gun = getGun()
+	
+	if not gun then return false end
+	
+	if gun.Parent ~= char and hum then
+		hum:EquipTool(gun)
+		task.wait(0.2)
+	end
+	
+	return getGun() and getGun().Parent == char
+end
+
+local function doShoot(targetRole, wallbang)
+	local plr = findRole(targetRole)
+	if not plr or not plr.Character then 
+		notify("Цель не найдена", T.Bad)
+		return 
+	end
+	
+	local targetPart = plr.Character:FindFirstChild("Head") or plr.Character:FindFirstChild("HumanoidRootPart")
+	if not targetPart then return end
+
+	if not equipGun() then
+		notify("Пистолет не найден!", T.Bad)
+		return
+	end
+	
+	local char = LP.Character
+	local root = getRoot()
+	local gun = getGun()
+	
+	if wallbang then
+		local oldCFrame = root.CFrame
+		root.CFrame = CFrame.lookAt(targetPart.Position + (root.CFrame.LookVector * -3), targetPart.Position)
+		task.wait(0.15)
+		gun:Activate()
+		task.wait(0.15)
+		root.CFrame = oldCFrame
+		notify("Wallbang: " .. targetRole, T.Good)
+	else
+		local cam = workspace.CurrentCamera
+		local oldCam = cam.CFrame
+		cam.CFrame = CFrame.lookAt(cam.CFrame.Position, targetPart.Position)
+		task.wait(0.15)
+		gun:Activate()
+		task.wait(0.15)
+		cam.CFrame = oldCam
+		notify("Выстрел: " .. targetRole, T.Accent2)
+	end
+end
+
+-- Плавающие кнопки стрельбы
+local function createFloatingShootButton(role, offsetY, text)
+	local btn = make("TextButton", {
+		Size = UDim2.fromOffset(120, 40), 
+		Position = UDim2.new(0, 20, 0.5, offsetY), 
+		BackgroundColor3 = T.Accent, 
+		Text = text, 
+		Font = T.FontBold, 
+		TextSize = 14, 
+		TextColor3 = Color3.new(1,1,1), 
+		Visible = false,
+		ZIndex = 99
+	}, gui)
+	radius(btn, 10); stroke(btn, 0.5); squish(btn)
+	
+	local dragging, dragStart, startPos
+	btn.InputBegan:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+			dragging, dragStart, startPos = true, input.Position, btn.Position
+		end
+	end)
+	track(UIS.InputChanged:Connect(function(input)
+		if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+			local delta = input.Position - dragStart
+			btn.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+		end
+	end))
+	track(UIS.InputEnded:Connect(function(input)
+		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
+	end))
+
+	btn.MouseButton1Click:Connect(function() doShoot(role, CFG.Wallbang) end)
+	return btn
+end
+
+local shootMurdFloat = createFloatingShootButton("Murderer", -30, "🔫 Murder")
+local shootSherFloat = createFloatingShootButton("Sheriff", 30, "🔫 Sheriff")
+
+-- ==========================================================================
+-- FLING CORE (ROCKHUB METHOD - FULL FIX)
 -- ==========================================================================
 
 local flingTarget = nil
-local flingConn = nil
-local flingSaved = {}
+local flingThread = nil
 local flingStartT = 0
 local allIdx = 0
 local allNext = 0
 
-local function saveCollide(model)
-	for _, p in ipairs(model:GetDescendants()) do
-		if p:IsA("BasePart") and flingSaved[p] == nil then flingSaved[p] = p.CanCollide end
-	end
-end
-
-local function restoreCollide()
-	for p, v in pairs(flingSaved) do if p.Parent then p.CanCollide = v end; flingSaved[p] = nil end
-end
-
 local function stopFling()
-	if flingConn then flingConn:Disconnect(); flingConn = nil end
+	if flingThread then
+		pcall(task.cancel, flingThread)
+		flingThread = nil
+	end
 	flingTarget = nil
-	restoreCollide()
 	
 	local c = LP.Character
 	local root = c and c:FindFirstChild("HumanoidRootPart")
 	local hum = c and c:FindFirstChildOfClass("Humanoid")
-
+	
 	if root then
-		local bv = root:FindFirstChildOfClass("BodyVelocity")
-		if bv then bv:Destroy() end
-		local bav = root:FindFirstChildOfClass("BodyAngularVelocity")
-		if bav then bav:Destroy() end
-		
 		root.AssemblyLinearVelocity = Vector3.zero
 		root.AssemblyAngularVelocity = Vector3.zero
 	end
-
 	if hum then 
+		hum.AutoRotate = true
 		hum.PlatformStand = false 
 		pcall(function() hum:ChangeState(Enum.HumanoidStateType.GettingUp) end)
 	end
@@ -503,61 +592,128 @@ end
 
 local function startFling(plr)
 	stopFling()
-	local c = LP.Character
-	local root = c and c:FindFirstChild("HumanoidRootPart")
-	local hum = c and c:FindFirstChildOfClass("Humanoid")
-	if not root or not hum then return end
-
+	
+	local char = LP.Character
+	local root = char and char:FindFirstChild("HumanoidRootPart")
+	local hum = char and char:FindFirstChildOfClass("Humanoid")
+	local targetChar = plr and plr.Character
+	local targetHum = targetChar and targetChar:FindFirstChildOfClass("Humanoid")
+	local targetRoot = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
+	
+	if not (root and hum and hum.Health > 0 and targetRoot and targetHum and targetHum.Health > 0) then return end
+	
 	flingTarget = plr
-	saveCollide(c)
+	flingStartT = os.clock()
 	
-	for _, p in ipairs(c:GetDescendants()) do
-		if p:IsA("BasePart") and p ~= root then p.CanCollide = false end
-	end
+	local savedPivot = char:GetPivot()
+	local savedAutoRotate = hum.AutoRotate
+	local savedFallenHeight = workspace.FallenPartsDestroyHeight
+	local savedSeatedEnabled = hum:GetStateEnabled(Enum.HumanoidStateType.Seated)
 	
-	root.CanCollide = true
-	hum.PlatformStand = true
-
-	local bv = Instance.new("BodyVelocity")
-	bv.Parent = root
-	bv.MaxForce = Vector3.new(math.huge, math.huge, math.huge)
-
-	local bav = Instance.new("BodyAngularVelocity")
-	bav.Parent = root
-	bav.MaxTorque = Vector3.new(math.huge, math.huge, math.huge)
-
-	local toggle = false
-	local disabledStates = {Enum.HumanoidStateType.FallingDown, Enum.HumanoidStateType.Ragdoll, Enum.HumanoidStateType.PlatformStanding}
-	for _, st in ipairs(disabledStates) do pcall(function() hum:SetStateEnabled(st, false) end) end
-
-	flingConn = RunService.Heartbeat:Connect(function()
-		local tc = plr.Character
-		local tr = tc and tc:FindFirstChild("HumanoidRootPart")
-		local th = tc and tc:FindFirstChildOfClass("Humanoid")
-		local me = LP.Character
-		local myRoot = me and me:FindFirstChild("HumanoidRootPart")
+	hum.AutoRotate = false
+	
+	flingThread = task.spawn(function()
+		local started = os.clock()
+		local lastPos = targetRoot.Position
+		local launchOrigin = lastPos
+		local launched = false
 		
-		if not running or not tr or not th or th.Health <= 0 or not myRoot or plr.Parent ~= Players then
-			stopFling()
-			return
+		local function targetEscaped()
+			if not targetRoot.Parent then return false end
+			lastPos = targetRoot.Position
+			local distance = (lastPos - launchOrigin).Magnitude
+			local speed = targetRoot.AssemblyLinearVelocity.Magnitude
+			return lastPos.Y <= savedFallenHeight + 30 or distance > 350 or (distance > 120 and speed > 200)
 		end
-
-		pcall(function() 
-			tr:SetNetworkOwner(LP) 
-			myRoot:SetNetworkOwner(LP)
+		
+		local function flingPosition(pos, angle)
+			local cf = CFrame.new(targetRoot.Position) * pos * angle
+			root.CFrame = cf
+			char:PivotTo(cf)
+			root.Velocity = Vector3.new(9e7, 9e8, 9e7)
+			root.RotVelocity = Vector3.new(9e8, 9e8, 9e8)
+		end
+		
+		-- Отключаем убийство об пол и состояние Seated
+		pcall(function()
+			workspace.FallenPartsDestroyHeight = 0 / 0
 		end)
-
-		tr.CanCollide = true
-		myRoot.CFrame = tr.CFrame
-
-		toggle = not toggle
-		myRoot.CanCollide = toggle
-
-		local power = CFG.FlingPower * 100 
-		bv.Velocity = Vector3.new(math.random(-power, power), power, math.random(-power, power))
-		bav.AngularVelocity = Vector3.new(power, power, power)
-
-		tr.AssemblyAngularVelocity = Vector3.new(power, power, power)
+		pcall(hum.SetStateEnabled, hum, Enum.HumanoidStateType.Seated, false)
+		pcall(function()
+			if sethiddenproperty then
+				sethiddenproperty(LP, "SimulationRadius", math.huge)
+			end
+		end)
+		
+		pcall(function()
+			local angle = 0
+			while running and os.clock() - started < 2 do
+				if not (root.Parent and hum.Health > 0 and targetRoot.Parent and targetHum.Health > 0) then
+					break
+				end
+				if targetEscaped() then
+					launched = true
+					break
+				end
+				local speed = targetRoot.AssemblyLinearVelocity.Magnitude
+				angle += 100
+				local steps
+				if speed < 50 then
+					local lead = targetHum.MoveDirection * speed / 1.25
+					local rotation = CFrame.Angles(math.rad(angle), 0, 0)
+					steps = {
+						{ CFrame.new(0, 1.5, 0) + lead, rotation },
+						{ CFrame.new(0, -1.5, 0) + lead, rotation },
+						{ CFrame.new(0, 1.5, 0) + lead, rotation },
+						{ CFrame.new(0, -1.5, 0) + lead, rotation },
+						{ CFrame.new(0, 1.5, 0) + targetHum.MoveDirection, rotation },
+						{ CFrame.new(0, -1.5, 0) + targetHum.MoveDirection, rotation },
+					}
+				else
+					local flat, quarter = CFrame.new(), CFrame.Angles(math.rad(90), 0, 0)
+					steps = {
+						{ CFrame.new(0, 1.5, targetHum.WalkSpeed), quarter },
+						{ CFrame.new(0, -1.5, -targetHum.WalkSpeed), flat },
+						{ CFrame.new(0, 1.5, targetHum.WalkSpeed), quarter },
+						{ CFrame.new(0, -1.5, 0), quarter },
+						{ CFrame.new(0, -1.5, 0), flat },
+						{ CFrame.new(0, -1.5, 0), quarter },
+						{ CFrame.new(0, -1.5, 0), flat },
+					}
+				end
+				for _, step in ipairs(steps) do
+					flingPosition(step[1], step[2])
+					task.wait()
+					if targetEscaped() then
+						launched = true
+						break
+					end
+				end
+				if launched then
+					break
+				end
+			end
+		end)
+		
+		-- Возврат на место
+		if root.Parent and hum.Health > 0 then
+			char:PivotTo(savedPivot)
+			root.AssemblyLinearVelocity = Vector3.zero
+			root.AssemblyAngularVelocity = Vector3.zero
+		end
+		
+		-- Восстановление свойств
+		pcall(function()
+			workspace.FallenPartsDestroyHeight = savedFallenHeight
+		end)
+		pcall(hum.SetStateEnabled, hum, Enum.HumanoidStateType.Seated, savedSeatedEnabled)
+		if hum and hum.Parent then
+			hum.AutoRotate = savedAutoRotate
+			pcall(function() hum:ChangeState(Enum.HumanoidStateType.GettingUp) end)
+		end
+		
+		flingThread = nil
+		flingTarget = nil
 	end)
 end
 
@@ -579,10 +735,10 @@ task.spawn(function()
 	while running do
 		local want = pickFlingTarget()
 		if want then
-			if want ~= flingTarget or not flingConn then startFling(want); flingStartT = os.clock() end
-		elseif flingConn then stopFling() end
+			if want ~= flingTarget or not flingThread then startFling(want) end
+		elseif flingThread then stopFling() end
 
-		if CFG.Fling and not CFG.FlingAll and not CFG.FlingMurd and not CFG.FlingSheriff and flingConn and os.clock() - flingStartT > CFG.FlingTime then
+		if CFG.Fling and not CFG.FlingAll and not CFG.FlingMurd and not CFG.FlingSheriff and flingThread and os.clock() - flingStartT > CFG.FlingTime then
 			if toggleApply.Fling then toggleApply.Fling(false, true) end
 			stopFling()
 			notify("fling: time expired", T.Accent2)
@@ -630,11 +786,11 @@ track(RunService.Heartbeat:Connect(function()
 	if not running then return end
 	local root = getRoot()
 	if not root then return end
-	if CFG.AntiFling and not flingConn and root.AssemblyLinearVelocity.Magnitude > 120 then
+	if CFG.AntiFling and not flingThread and root.AssemblyLinearVelocity.Magnitude > 120 then
 		root.AssemblyLinearVelocity = Vector3.zero
 		root.AssemblyAngularVelocity = Vector3.zero
 	end
-	if CFG.TouchFling and not flingConn and nearestOther(CFG.TouchRange) then
+	if CFG.TouchFling and not flingThread and nearestOther(CFG.TouchRange) then
 		root.AssemblyAngularVelocity = Vector3.new(0, CFG.FlingPower, 0)
 	end
 end))
@@ -703,42 +859,43 @@ end
 
 task.spawn(function() while running do refreshKnife(); task.wait(0.25) end end)
 
-local function hasGun()
-	local c = LP.Character
-	local bp = LP:FindFirstChildOfClass("Backpack")
-	return (c and c:FindFirstChild("Gun")) or (bp and bp:FindFirstChild("Gun")) or false
-end
-
 -- ==========================================================================
--- AUTO GUN
+-- AUTO GUN (ИСПРАВЛЕНО)
 -- ==========================================================================
 task.spawn(function()
 	while running do
-		if CFG.AutoGun and not hasGun() then
+		if CFG.AutoGun and not getGun() then
 			local drop = nil
 			for _, obj in ipairs(workspace:GetDescendants()) do
-				if (obj:IsA("Tool") or obj.Name:lower():find("gun")) and not Players:GetPlayerFromCharacter(obj.Parent) then
+				if obj.Name == "Gun" and obj:IsA("Tool") and not Players:GetPlayerFromCharacter(obj.Parent) then
 					drop = obj
 					break
 				end
 			end
 
 			local root = getRoot()
-			if drop and root then
-				local part = drop:IsA("BasePart") and drop or drop:FindFirstChild("Handle", true) or drop:FindFirstChildWhichIsA("BasePart", true)
+			local hum = getHum()
+			if drop and root and hum then
+				local part = drop:FindFirstChild("Handle") or drop:FindFirstChildWhichIsA("BasePart")
 				if part then
 					local oldPos = root.CFrame
-					root.CFrame = part.CFrame + Vector3.new(0, 2, 0)
+					root.CFrame = part.CFrame
 					
 					if firetouchinterest then 
 						pcall(firetouchinterest, root, part, 0)
-						task.wait(0.15) 
+						task.wait(0.2) 
 						pcall(firetouchinterest, root, part, 1)
 					else
-						task.wait(0.15)
+						task.wait(0.2)
 					end
 					
 					root.CFrame = oldPos
+					task.wait(0.2)
+					
+					local newGun = LP:FindFirstChildOfClass("Backpack") and LP.Backpack:FindFirstChild("Gun")
+					if newGun then
+						hum:EquipTool(newGun)
+					end
 				end
 			end
 		end
@@ -752,9 +909,9 @@ end)
 -- ==========================================================================
 local collectedItems = setmetatable({}, {__mode = "k"})
 
-local CANDY_RADIUS  = 5      -- дистанция срабатывания сбора
-local CANDY_TIMEOUT = 3.0    -- максимум летим к одной монетке, сек
-local CANDY_PAUSE   = 0.3    -- пауза после сбора одной монетки
+local CANDY_RADIUS = 5
+local CANDY_TIMEOUT = 3.0
+local CANDY_PAUSE = 0.3
 
 local candyBV = nil
 local candyCoin = nil
@@ -801,8 +958,7 @@ task.spawn(function()
 			local hum = char and char:FindFirstChildOfClass("Humanoid")
 			local root = char and char:FindFirstChild("HumanoidRootPart")
 
-			if char and hum and hum.Health > 0 and root and not flingConn then
-				-- отключаем коллизии, чтобы пролетать сквозь стены
+			if char and hum and hum.Health > 0 and root and not flingThread then
 				for _, p in ipairs(char:GetDescendants()) do
 					if p:IsA("BasePart") then p.CanCollide = false end
 				end
@@ -828,7 +984,6 @@ task.spawn(function()
 						candyCoin = nil; candyTimer = 0
 						task.wait(CANDY_PAUSE)
 					elseif candyTimer >= CANDY_TIMEOUT then
-						-- монетка недостижима — пропускаем, чтобы не зациклиться
 						candyBV.Velocity = Vector3.zero
 						collectedItems[coin] = true
 						candyCoin = nil; candyTimer = 0
@@ -898,24 +1053,24 @@ slider(c2, "FOV", "AimFOV", 30, 400, "px"); slider(c2, "Smoothness", "AimSmooth"
 local c3 = card(pages["Combat"], "Kill")
 slider(c3, "Delay", "KillDelay", 0, 10, "s")
 
-local cS = card(pages["Combat"], "Shoot")
-local shootMurderBtn = make("TextButton", {Size = UDim2.new(1, 0, 0, 32), BackgroundColor3 = Color3.fromRGB(22, 22, 27), BackgroundTransparency = 0.05, AutoButtonColor = false, BorderSizePixel = 0, LayoutOrder = 10, Text = "Shoot Murderer", Font = T.FontBold, TextSize = 13, TextColor3 = T.Text}, cS)
-radius(shootMurderBtn, 9); stroke(shootMurderBtn, 0.75); squish(shootMurderBtn)
+local cS = card(pages["Combat"], "Shoot System")
+toggle(cS, "Wallbang (Сквозь стены)", "Wallbang")
 
-local floatShoot = make("TextButton", {Size = UDim2.fromOffset(120, 36), Position = UDim2.new(0, 16, 0.45, 0), BackgroundColor3 = Color3.fromRGB(22, 22, 27), BackgroundTransparency = 0.05, AutoButtonColor = false, BorderSizePixel = 0, Visible = false, Text = "Shoot", Font = T.FontBold, TextSize = 14, TextColor3 = T.Text}, gui)
-radius(floatShoot, 9); stroke(floatShoot, 0.75); squish(floatShoot)
-floatShoot.MouseButton1Click:Connect(function() local plr = findRole("Murderer"); if plr and plr.Character then local gun = hasGun(); if gun then gun:Activate() end end end)
-shootMurderBtn.MouseButton1Click:Connect(function() floatShoot.Visible = not floatShoot.Visible; shootMurderBtn.Text = floatShoot.Visible and "Hide Shoot" or "Shoot Murderer" end)
+button(cS, "Показать кнопку [Murder]", function()
+	shootMurdFloat.Visible = not shootMurdFloat.Visible
+end)
+button(cS, "Показать кнопку [Sheriff]", function()
+	shootSherFloat.Visible = not shootSherFloat.Visible
+end)
 
 local c4 = card(pages["Player"], "Role")
 local roleLbl = make("TextLabel", {Size = UDim2.new(1, 0, 0, 24), BackgroundTransparency = 1, LayoutOrder = 1, Text = "Innocent", Font = T.FontBold, TextSize = 18, TextColor3 = T.Good, TextXAlignment = Enum.TextXAlignment.Left}, c4)
 toggle(c4, "Auto Gun (Touch GunDrop)", "AutoGun")
 
-local c5 = card(pages["Fling"], "Fling")
+local c5 = card(pages["Fling"], "Fling (RockHub Fix)")
 toggle(c5, "Fling (Nearest)", "Fling")
 toggle(c5, "Fling All (One by one)", "FlingAll")
 toggle(c5, "Anti-Fling", "AntiFling")
-slider(c5, "Fling Power", "FlingPowerUI", 1, 100, "", function(v) CFG.FlingPower = v * 10000 end)
 slider(c5, "Duration", "FlingTime", 1, 30, "s")
 slider(c5, "Distance", "FlingRange", 5, 80, "st")
 
@@ -950,7 +1105,7 @@ local function setNoclip(on)
 		end
 	end
 end
-track(RunService.Stepped:Connect(function() if not running or not CFG.Noclip or flingConn then return end; local c = LP.Character; if not c then return end; for _, p in ipairs(c:GetDescendants()) do if p:IsA("BasePart") and p.CanCollide then if noclipSaved[p] == nil then noclipSaved[p] = true end; p.CanCollide = false end end end))
+track(RunService.Stepped:Connect(function() if not running or not CFG.Noclip or flingThread then return end; local c = LP.Character; if not c then return end; for _, p in ipairs(c:GetDescendants()) do if p:IsA("BasePart") and p.CanCollide then if noclipSaved[p] == nil then noclipSaved[p] = true end; p.CanCollide = false end end end))
 
 local cMove = card(pages["Player"], "Movement")
 toggle(cMove, "Noclip", "Noclip", function(on) if not on then setNoclip(false) end end)

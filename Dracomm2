@@ -1,3 +1,14 @@
+print([[
+Telegram:DraconHubr
+
+██████╗ ██████╗  █████╗  ██████╗  ██████╗ 
+██╔══██╗██╔══██╗██╔══██╗██╔════╝██╔═══██╗
+██║  ██║██████╔╝███████║██║     ██║   ██║
+██║  ██║██╔══██╗██╔══██║██║     ██║   ██║
+██████╔╝██║  ██║██║  ██║╚██████╗╚██████╔╝
+╚═════╝ ╚═╝  ╚═╝╚═╝  ╚═╝ ╚═════╝ ╚═════╝
+]])
+
 local Players = game:GetService("Players")
 local RunService = game:GetService("RunService")
 local UIS = game:GetService("UserInputService")
@@ -5,6 +16,7 @@ local TweenService = game:GetService("TweenService")
 local Lighting = game:GetService("Lighting")
 local Stats = game:GetService("Stats")
 local CoreGui = game:GetService("CoreGui")
+local Workspace = game:GetService("Workspace")
 local LP = Players.LocalPlayer
 
 local T = {
@@ -31,8 +43,8 @@ local KEY_DB = {
 local KEY_FILE = "dracohub_key.txt"
 
 local CFG = {
-	ESP = false, ESPRole = true,
-	Aimbot = false, AimFOV = 150, AimSmooth = 35, AimHoldRMB = true, ShowFOV = true,
+	ESP = false, ESPRole = false,
+	Aimbot = false, AimFOV = 150, AimSmooth = 35, AimHoldRMB = false, ShowFOV = false,
 	Fling = false, FlingPower = 1000000, FlingPowerUI = 100, FlingTime = 12, FlingRange = 60,
 	FlingMurd = false, FlingSheriff = false, FlingAll = false,
 	AntiFling = false,
@@ -40,11 +52,19 @@ local CFG = {
 	AutoGun = false,
 	KillDelay = 3,
 	Transp = 0,
-	KeyUnlocked = false,
+	KeyUnlocked = true,
 	AutoLoadKey = true,
-	PlayerFF = false, PlayerFFOrange = true,
+	PlayerFF = false, PlayerFFOrange = false,
 	KnifeMode = "off",
-	Fullbright = false,
+	
+	AuraEnabled = false,
+	AuraColorIndex = 1,
+	AuraBrightness = 2,
+	EffectsEnabled = false,
+	HighQuality = false,
+	NightMode = false,
+	SnowEnabled = false,
+	
 	WalkOn = false, WalkSpeed = 16,
 	Noclip = false,
 	AutoCandy = false, CandySpeed = 20,
@@ -56,7 +76,6 @@ local running = true
 local isOpen = false
 local conns = {}
 local regs = {}
-
 local setVisible, unload
 local ORANGE = Color3.fromRGB(255, 120, 0)
 
@@ -112,7 +131,6 @@ local PX_COL = {
 	b = Color3.fromRGB(110, 60, 30), g = Color3.fromRGB(90, 180, 60), O = Color3.fromRGB(60, 25, 0),
 	o = Color3.fromRGB(255, 120, 20), h = Color3.fromRGB(255, 170, 70), e = Color3.fromRGB(30, 10, 0), s = Color3.fromRGB(190, 70, 10),
 }
-
 local function px_rows()
 	local function row(pad, s) return string.rep(".", pad) .. s .. string.rep(".", 16 - pad - #s) end
 	local function rep(c, n) return string.rep(c, n) end
@@ -175,8 +193,8 @@ local blur = make("BlurEffect", {Size = 0, Enabled = false}, Lighting)
 
 local toastHolder = make("Frame", {Size = UDim2.fromOffset(260, 400), AnchorPoint = Vector2.new(1, 1), Position = UDim2.new(1, -16, 1, -16), BackgroundTransparency = 1}, gui)
 make("UIListLayout", {VerticalAlignment = Enum.VerticalAlignment.Bottom, HorizontalAlignment = Enum.HorizontalAlignment.Right, Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder}, toastHolder)
-
 local toastN = 0
+
 local function notify(text, col)
 	toastN += 1
 	local t = panel(toastHolder, 10, T.Card, 1)
@@ -197,7 +215,6 @@ main.Visible = false
 local mainScale = make("UIScale", {}, main)
 
 local header = make("Frame", {Size = UDim2.new(1, 0, 0, 46), BackgroundTransparency = 1}, main)
-
 do
 	local dragging, startMouse, startPos
 	header.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 then dragging, startMouse, startPos = true, i.Position, main.Position end end)
@@ -209,13 +226,17 @@ local logo = make("Frame", {Size = UDim2.fromOffset(28, 28), Position = UDim2.fr
 radius(logo, 8)
 make("UIGradient", {Color = ColorSequence.new(T.Accent, T.Accent2), Rotation = 45}, logo)
 make("TextLabel", {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, Text = "D", Font = Enum.Font.GothamBlack, TextSize = 16, TextColor3 = Color3.new(1, 1, 1)}, logo)
-
 local logoGlow = make("UIStroke", {Color = T.Accent, Thickness = 2, Transparency = 0.3}, logo)
-task.spawn(function() while running do tween(logoGlow, 1.2, {Transparency = 0.85}).Completed:Wait(); tween(logoGlow, 1.2, {Transparency = 0.2}).Completed:Wait() end end)
+
+task.spawn(function()
+	while running do
+		tween(logoGlow, 1.2, {Transparency = 0.85}).Completed:Wait()
+		tween(logoGlow, 1.2, {Transparency = 0.2}).Completed:Wait()
+	end
+end)
 
 make("TextLabel", {Size = UDim2.fromOffset(200, 18), Position = UDim2.fromOffset(48, 7), BackgroundTransparency = 1, Text = "DracoHubThebest", Font = T.FontBold, TextSize = 15, TextColor3 = T.Text, TextXAlignment = Enum.TextXAlignment.Left}, main)
 make("TextLabel", {Size = UDim2.fromOffset(200, 14), Position = UDim2.fromOffset(48, 25), BackgroundTransparency = 1, Text = "Murder Mystery 2 · Halloween", Font = Enum.Font.Gotham, TextSize = 10, TextColor3 = T.Sub, TextXAlignment = Enum.TextXAlignment.Left}, main)
-
 pumpkin(main, 282, 8, 2)
 
 local statsPill = panel(main, 12, T.Card, 0.2)
@@ -280,12 +301,11 @@ for i, name in ipairs(tabNames) do
 	radius(bg, 8)
 	local lbl = make("TextLabel", {Size = UDim2.new(1, -20, 1, 0), Position = UDim2.fromOffset(12, 0), BackgroundTransparency = 1, Text = name, Font = T.Font, TextSize = 12, TextColor3 = T.Sub, TextXAlignment = Enum.TextXAlignment.Left}, b)
 	tabBtns[name] = {bg = bg, lbl = lbl}
-
 	b.MouseEnter:Connect(function() if currentTab ~= name then tween(bg, 0.15, {BackgroundTransparency = 0.85}) end end)
 	b.MouseLeave:Connect(function() if currentTab ~= name then tween(bg, 0.2, {BackgroundTransparency = 1}) end end)
 	b.MouseButton1Click:Connect(function() setTab(name, i) end)
 	squish(b)
-
+	
 	local p = make("ScrollingFrame", {Size = UDim2.fromScale(1, 1), BackgroundTransparency = 1, BorderSizePixel = 0, Visible = false, ScrollBarThickness = 2, ScrollBarImageColor3 = T.Accent, CanvasSize = UDim2.new(), AutomaticCanvasSize = Enum.AutomaticSize.Y}, content)
 	make("UIListLayout", {Padding = UDim.new(0, 8), SortOrder = Enum.SortOrder.LayoutOrder}, p)
 	make("UIPadding", {PaddingTop = UDim.new(0, 2), PaddingRight = UDim.new(0, 6)}, p)
@@ -310,13 +330,14 @@ local function toggle(parent, label, key, cb)
 	radius(trk, 10)
 	local knob = make("Frame", {Size = UDim2.fromOffset(16, 16), Position = UDim2.fromOffset(2, 2), BackgroundColor3 = Color3.new(1, 1, 1), BorderSizePixel = 0}, trk)
 	radius(knob, 8)
-
+	
 	local function apply(on, silent)
 		CFG[key] = on
 		tween(trk, 0.25, {BackgroundColor3 = on and T.Accent or T.Off})
 		tween(knob, 0.35, {Position = on and UDim2.fromOffset(20, 2) or UDim2.fromOffset(2, 2)}, Enum.EasingStyle.Back)
 		if cb and not silent then task.spawn(cb, on) end
 	end
+	
 	toggleApply[key] = apply
 	trk.MouseButton1Click:Connect(function() apply(not CFG[key]) end)
 	apply(CFG[key] and true or false, true)
@@ -333,7 +354,7 @@ local function slider(parent, label, key, min, max, suffix, cb)
 	local knob = make("Frame", {Size = UDim2.fromOffset(14, 14), AnchorPoint = Vector2.new(0.5, 0.5), Position = UDim2.new(0, 0, 0.5, 0), BackgroundColor3 = Color3.new(1, 1, 1), BorderSizePixel = 0, ZIndex = 2}, trk)
 	radius(knob, 7)
 	local hit = make("TextButton", {Size = UDim2.new(1, 0, 0, 16), Position = UDim2.fromOffset(0, 21), BackgroundTransparency = 1, AutoButtonColor = false, Text = ""}, r)
-
+	
 	local function apply(v, silent)
 		v = math.clamp(math.floor(v + 0.5), min, max)
 		CFG[key] = v
@@ -343,9 +364,10 @@ local function slider(parent, label, key, min, max, suffix, cb)
 		val.Text = tostring(v) .. (suffix or "")
 		if cb and not silent then task.spawn(cb, v) end
 	end
-
+	
 	local dragging = false
 	local function fromX(x) local p = math.clamp((x - trk.AbsolutePosition.X) / math.max(trk.AbsoluteSize.X, 1), 0, 1); apply(min + (max - min) * p) end
+	
 	hit.InputBegan:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = true; fromX(i.Position.X) end end)
 	track(UIS.InputChanged:Connect(function(i) if dragging and (i.UserInputType == Enum.UserInputType.MouseMovement or i.UserInputType == Enum.UserInputType.Touch) then fromX(i.Position.X) end end))
 	track(UIS.InputEnded:Connect(function(i) if i.UserInputType == Enum.UserInputType.MouseButton1 or i.UserInputType == Enum.UserInputType.Touch then dragging = false end end))
@@ -391,15 +413,12 @@ local function findRole(role)
 	return nil
 end
 
--- ==========================================================================
--- ESP
--- ==========================================================================
-
 local c1 = card(pages["Visuals"], "ESP")
 toggle(c1, "ESP", "ESP")
 toggle(c1, "Show Roles", "ESPRole")
 
 local espStore = {}
+
 local function clearESP(plr)
 	local s = espStore[plr]
 	if s then if s.hl then s.hl:Destroy() end; if s.bb then s.bb:Destroy() end end
@@ -427,9 +446,8 @@ local function updateESP()
 		else clearESP(plr) end
 	end
 end
-track(Players.PlayerRemoving:Connect(clearESP))
 
--- Aim ----------------------------------------------------------------------
+track(Players.PlayerRemoving:Connect(clearESP))
 
 local aiming = false
 track(UIS.InputBegan:Connect(function(i, gp) if not gp and i.UserInputType == Enum.UserInputType.MouseButton2 then aiming = true end end))
@@ -456,10 +474,6 @@ local function aimHead()
 	return best
 end
 
--- ==========================================================================
--- СИСТЕМА СТРЕЛЬБЫ И WALLBANG
--- ==========================================================================
-
 local function getGun()
 	local char = LP.Character
 	local bp = LP:FindFirstChildOfClass("Backpack")
@@ -470,36 +484,29 @@ local function equipGun()
 	local char = LP.Character
 	local hum = getHum()
 	local gun = getGun()
-	
 	if not gun then return false end
-	
 	if gun.Parent ~= char and hum then
 		hum:EquipTool(gun)
 		task.wait(0.2)
 	end
-	
 	return getGun() and getGun().Parent == char
 end
 
 local function doShoot(targetRole, wallbang)
 	local plr = findRole(targetRole)
-	if not plr or not plr.Character then 
+	if not plr or not plr.Character then
 		notify("Цель не найдена", T.Bad)
-		return 
+		return
 	end
-	
 	local targetPart = plr.Character:FindFirstChild("Head") or plr.Character:FindFirstChild("HumanoidRootPart")
 	if not targetPart then return end
-
 	if not equipGun() then
 		notify("Пистолет не найден!", T.Bad)
 		return
 	end
-	
 	local char = LP.Character
 	local root = getRoot()
 	local gun = getGun()
-	
 	if wallbang then
 		local oldCFrame = root.CFrame
 		root.CFrame = CFrame.lookAt(targetPart.Position + (root.CFrame.LookVector * -3), targetPart.Position)
@@ -520,16 +527,15 @@ local function doShoot(targetRole, wallbang)
 	end
 end
 
--- Плавающие кнопки стрельбы
 local function createFloatingShootButton(role, offsetY, text)
 	local btn = make("TextButton", {
-		Size = UDim2.fromOffset(120, 40), 
-		Position = UDim2.new(0, 20, 0.5, offsetY), 
-		BackgroundColor3 = T.Accent, 
-		Text = text, 
-		Font = T.FontBold, 
-		TextSize = 14, 
-		TextColor3 = Color3.new(1,1,1), 
+		Size = UDim2.fromOffset(120, 40),
+		Position = UDim2.new(0, 20, 0.5, offsetY),
+		BackgroundColor3 = T.Accent,
+		Text = text,
+		Font = T.FontBold,
+		TextSize = 14,
+		TextColor3 = Color3.new(1,1,1),
 		Visible = false,
 		ZIndex = 99
 	}, gui)
@@ -550,17 +556,12 @@ local function createFloatingShootButton(role, offsetY, text)
 	track(UIS.InputEnded:Connect(function(input)
 		if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then dragging = false end
 	end))
-
 	btn.MouseButton1Click:Connect(function() doShoot(role, CFG.Wallbang) end)
 	return btn
 end
 
 local shootMurdFloat = createFloatingShootButton("Murderer", -30, "🔫 Murder")
 local shootSherFloat = createFloatingShootButton("Sheriff", 30, "🔫 Sheriff")
-
--- ==========================================================================
--- FLING CORE (ROCKHUB METHOD - FULL FIX)
--- ==========================================================================
 
 local flingTarget = nil
 local flingThread = nil
@@ -574,42 +575,36 @@ local function stopFling()
 		flingThread = nil
 	end
 	flingTarget = nil
-	
 	local c = LP.Character
 	local root = c and c:FindFirstChild("HumanoidRootPart")
 	local hum = c and c:FindFirstChildOfClass("Humanoid")
-	
 	if root then
 		root.AssemblyLinearVelocity = Vector3.zero
 		root.AssemblyAngularVelocity = Vector3.zero
 	end
-	if hum then 
+	if hum then
 		hum.AutoRotate = true
-		hum.PlatformStand = false 
+		hum.PlatformStand = false
 		pcall(function() hum:ChangeState(Enum.HumanoidStateType.GettingUp) end)
 	end
 end
 
 local function startFling(plr)
 	stopFling()
-	
 	local char = LP.Character
 	local root = char and char:FindFirstChild("HumanoidRootPart")
 	local hum = char and char:FindFirstChildOfClass("Humanoid")
 	local targetChar = plr and plr.Character
 	local targetHum = targetChar and targetChar:FindFirstChildOfClass("Humanoid")
 	local targetRoot = targetChar and targetChar:FindFirstChild("HumanoidRootPart")
-	
 	if not (root and hum and hum.Health > 0 and targetRoot and targetHum and targetHum.Health > 0) then return end
 	
 	flingTarget = plr
 	flingStartT = os.clock()
-	
 	local savedPivot = char:GetPivot()
 	local savedAutoRotate = hum.AutoRotate
 	local savedFallenHeight = workspace.FallenPartsDestroyHeight
 	local savedSeatedEnabled = hum:GetStateEnabled(Enum.HumanoidStateType.Seated)
-	
 	hum.AutoRotate = false
 	
 	flingThread = task.spawn(function()
@@ -634,27 +629,15 @@ local function startFling(plr)
 			root.RotVelocity = Vector3.new(9e8, 9e8, 9e8)
 		end
 		
-		-- Отключаем убийство об пол и состояние Seated
-		pcall(function()
-			workspace.FallenPartsDestroyHeight = 0 / 0
-		end)
+		pcall(function() workspace.FallenPartsDestroyHeight = 0 / 0 end)
 		pcall(hum.SetStateEnabled, hum, Enum.HumanoidStateType.Seated, false)
-		pcall(function()
-			if sethiddenproperty then
-				sethiddenproperty(LP, "SimulationRadius", math.huge)
-			end
-		end)
+		pcall(function() if sethiddenproperty then sethiddenproperty(LP, "SimulationRadius", math.huge) end end)
 		
 		pcall(function()
 			local angle = 0
 			while running and os.clock() - started < 2 do
-				if not (root.Parent and hum.Health > 0 and targetRoot.Parent and targetHum.Health > 0) then
-					break
-				end
-				if targetEscaped() then
-					launched = true
-					break
-				end
+				if not (root.Parent and hum.Health > 0 and targetRoot.Parent and targetHum.Health > 0) then break end
+				if targetEscaped() then launched = true; break end
 				local speed = targetRoot.AssemblyLinearVelocity.Magnitude
 				angle += 100
 				local steps
@@ -662,56 +645,38 @@ local function startFling(plr)
 					local lead = targetHum.MoveDirection * speed / 1.25
 					local rotation = CFrame.Angles(math.rad(angle), 0, 0)
 					steps = {
-						{ CFrame.new(0, 1.5, 0) + lead, rotation },
-						{ CFrame.new(0, -1.5, 0) + lead, rotation },
-						{ CFrame.new(0, 1.5, 0) + lead, rotation },
-						{ CFrame.new(0, -1.5, 0) + lead, rotation },
-						{ CFrame.new(0, 1.5, 0) + targetHum.MoveDirection, rotation },
-						{ CFrame.new(0, -1.5, 0) + targetHum.MoveDirection, rotation },
+						{ CFrame.new(0, 1.5, 0) + lead, rotation }, { CFrame.new(0, -1.5, 0) + lead, rotation },
+						{ CFrame.new(0, 1.5, 0) + lead, rotation }, { CFrame.new(0, -1.5, 0) + lead, rotation },
+						{ CFrame.new(0, 1.5, 0) + targetHum.MoveDirection, rotation }, { CFrame.new(0, -1.5, 0) + targetHum.MoveDirection, rotation },
 					}
 				else
 					local flat, quarter = CFrame.new(), CFrame.Angles(math.rad(90), 0, 0)
 					steps = {
-						{ CFrame.new(0, 1.5, targetHum.WalkSpeed), quarter },
-						{ CFrame.new(0, -1.5, -targetHum.WalkSpeed), flat },
-						{ CFrame.new(0, 1.5, targetHum.WalkSpeed), quarter },
-						{ CFrame.new(0, -1.5, 0), quarter },
-						{ CFrame.new(0, -1.5, 0), flat },
-						{ CFrame.new(0, -1.5, 0), quarter },
-						{ CFrame.new(0, -1.5, 0), flat },
+						{ CFrame.new(0, 1.5, targetHum.WalkSpeed), quarter }, { CFrame.new(0, -1.5, -targetHum.WalkSpeed), flat },
+						{ CFrame.new(0, 1.5, targetHum.WalkSpeed), quarter }, { CFrame.new(0, -1.5, 0), quarter },
+						{ CFrame.new(0, -1.5, 0), flat }, { CFrame.new(0, -1.5, 0), quarter }, { CFrame.new(0, -1.5, 0), flat },
 					}
 				end
 				for _, step in ipairs(steps) do
 					flingPosition(step[1], step[2])
 					task.wait()
-					if targetEscaped() then
-						launched = true
-						break
-					end
+					if targetEscaped() then launched = true; break end
 				end
-				if launched then
-					break
-				end
+				if launched then break end
 			end
 		end)
 		
-		-- Возврат на место
 		if root.Parent and hum.Health > 0 then
 			char:PivotTo(savedPivot)
 			root.AssemblyLinearVelocity = Vector3.zero
 			root.AssemblyAngularVelocity = Vector3.zero
 		end
-		
-		-- Восстановление свойств
-		pcall(function()
-			workspace.FallenPartsDestroyHeight = savedFallenHeight
-		end)
+		pcall(function() workspace.FallenPartsDestroyHeight = savedFallenHeight end)
 		pcall(hum.SetStateEnabled, hum, Enum.HumanoidStateType.Seated, savedSeatedEnabled)
 		if hum and hum.Parent then
 			hum.AutoRotate = savedAutoRotate
 			pcall(function() hum:ChangeState(Enum.HumanoidStateType.GettingUp) end)
 		end
-		
 		flingThread = nil
 		flingTarget = nil
 	end)
@@ -737,7 +702,6 @@ task.spawn(function()
 		if want then
 			if want ~= flingTarget or not flingThread then startFling(want) end
 		elseif flingThread then stopFling() end
-
 		if CFG.Fling and not CFG.FlingAll and not CFG.FlingMurd and not CFG.FlingSheriff and flingThread and os.clock() - flingStartT > CFG.FlingTime then
 			if toggleApply.Fling then toggleApply.Fling(false, true) end
 			stopFling()
@@ -747,9 +711,8 @@ task.spawn(function()
 	end
 end)
 
--- ==========================================================================
-
 local ffCache = setmetatable({}, {__mode = "k"})
+
 local function applyPlayerFF(on)
 	local c = LP.Character; if not c then return end
 	for _, p in ipairs(c:GetDescendants()) do
@@ -771,7 +734,6 @@ track(RunService.RenderStepped:Connect(function()
 	fovRing.Visible = CFG.ShowFOV
 	fovRing.Position = UDim2.fromOffset(m.X, m.Y)
 	fovRing.Size = UDim2.fromOffset(CFG.AimFOV * 2, CFG.AimFOV * 2)
-
 	if not CFG.Aimbot then return end
 	if CFG.AimHoldRMB and not aiming then return end
 	local head = aimHead()
@@ -795,10 +757,6 @@ track(RunService.Heartbeat:Connect(function()
 	end
 end))
 
--- ==========================================================================
--- VISUALS LOOP
--- ==========================================================================
-
 task.spawn(function()
 	while running do
 		updateESP()
@@ -817,8 +775,6 @@ track({Disconnect = function()
 	applyPlayerFF(false)
 	fovRing:Destroy()
 end})
-
--- Auto Gun & Knife Visual --------------------------------------------------
 
 local knifeCache = {}
 local function findKnife()
@@ -859,9 +815,6 @@ end
 
 task.spawn(function() while running do refreshKnife(); task.wait(0.25) end end)
 
--- ==========================================================================
--- AUTO GUN (ИСПРАВЛЕНО)
--- ==========================================================================
 task.spawn(function()
 	while running do
 		if CFG.AutoGun and not getGun() then
@@ -872,7 +825,6 @@ task.spawn(function()
 					break
 				end
 			end
-
 			local root = getRoot()
 			local hum = getHum()
 			if drop and root and hum then
@@ -880,18 +832,15 @@ task.spawn(function()
 				if part then
 					local oldPos = root.CFrame
 					root.CFrame = part.CFrame
-					
-					if firetouchinterest then 
+					if firetouchinterest then
 						pcall(firetouchinterest, root, part, 0)
-						task.wait(0.2) 
+						task.wait(0.2)
 						pcall(firetouchinterest, root, part, 1)
 					else
 						task.wait(0.2)
 					end
-					
 					root.CFrame = oldPos
 					task.wait(0.2)
-					
 					local newGun = LP:FindFirstChildOfClass("Backpack") and LP.Backpack:FindFirstChild("Gun")
 					if newGun then
 						hum:EquipTool(newGun)
@@ -902,17 +851,11 @@ task.spawn(function()
 		task.wait(0.5)
 	end
 end)
--- ==========================================================================
 
--- ==========================================================================
--- AUTO CANDY (FLY METHOD)
--- ==========================================================================
 local collectedItems = setmetatable({}, {__mode = "k"})
-
 local CANDY_RADIUS = 5
 local CANDY_TIMEOUT = 3.0
 local CANDY_PAUSE = 0.3
-
 local candyBV = nil
 local candyCoin = nil
 local candyTimer = 0
@@ -957,22 +900,17 @@ task.spawn(function()
 			local char = LP.Character
 			local hum = char and char:FindFirstChildOfClass("Humanoid")
 			local root = char and char:FindFirstChild("HumanoidRootPart")
-
 			if char and hum and hum.Health > 0 and root and not flingThread then
 				for _, p in ipairs(char:GetDescendants()) do
 					if p:IsA("BasePart") then p.CanCollide = false end
 				end
-
 				if not candyBV or candyBV.Parent ~= root then startCandyFly() end
-
 				local coin = getNearestCoin()
 				if coin and candyBV then
 					if coin ~= candyCoin then candyCoin = coin; candyTimer = 0 end
 					candyTimer += 0.05
-
 					local delta = coin.Position - root.Position
 					local dist = delta.Magnitude
-
 					if dist <= CANDY_RADIUS then
 						candyBV.Velocity = Vector3.zero
 						if firetouchinterest then
@@ -1003,11 +941,7 @@ task.spawn(function()
 		task.wait(0.05)
 	end
 end)
--- ==========================================================================
 
--- ==========================================================================
--- JUMP SPAM (EVERY 0.5S)
--- ==========================================================================
 task.spawn(function()
 	while running do
 		if CFG.JumpSpam then
@@ -1020,19 +954,321 @@ task.spawn(function()
 		task.wait(0.5)
 	end
 end)
--- ==========================================================================
 
--- UI Cards -----------------------------------------------------------------
+local WINGS_ID = "rbxassetid://75798084802122"
+local HAT_ID = "rbxassetid://14436609755"
+local auraColors = {
+	Color3.fromRGB(120, 200, 255),
+	Color3.fromRGB(255, 220, 120),
+	Color3.fromRGB(255, 140, 220),
+	Color3.fromRGB(140, 255, 170),
+}
+
+local function getOrCreate(className, name)
+	local obj = Lighting:FindFirstChild(name)
+	if obj and obj.ClassName ~= className then
+		obj:Destroy()
+		obj = nil
+	end
+	if not obj then
+		obj = Instance.new(className)
+		obj.Name = name
+		obj.Parent = Lighting
+	end
+	return obj
+end
+
+local cc, bloom, rays, atmo, dof
+
+local function setupEffects()
+	cc = getOrCreate("ColorCorrectionEffect", "RealismColor")
+	cc.Brightness = 0.02
+	cc.Contrast = 0.18
+	cc.Saturation = 0.12
+	cc.TintColor = Color3.fromRGB(255, 246, 235)
+
+	bloom = getOrCreate("BloomEffect", "RealismBloom")
+	bloom.Intensity = 0.45
+	bloom.Size = 28
+	bloom.Threshold = 0.95
+
+	rays = getOrCreate("SunRaysEffect", "RealismSunRays")
+	rays.Intensity = 0.15
+	rays.Spread = 0.7
+
+	atmo = getOrCreate("Atmosphere", "RealismAtmosphere")
+	atmo.Density = 0.4
+	atmo.Offset = 0.25
+	atmo.Glare = 0.4
+	atmo.Haze = 1.5
+
+	dof = getOrCreate("DepthOfFieldEffect", "RealismDOF")
+	dof.FarIntensity = 0.12
+	dof.NearIntensity = 0
+	dof.InFocusRadius = 45
+	dof.FocusDistance = 12
+
+	if not Lighting:FindFirstChildOfClass("Sky") then
+		Instance.new("Sky").Parent = Lighting
+	end
+end
+
+local function applyQuality(high)
+	if high then
+		pcall(function() Lighting.Technology = Enum.Technology.Future end)
+		Lighting.GlobalShadows = true
+		Lighting.ShadowSoftness = 0.25
+		Lighting.EnvironmentDiffuseScale = 1
+		Lighting.EnvironmentSpecularScale = 1
+	else
+		pcall(function() Lighting.Technology = Enum.Technology.ShadowMap end)
+		Lighting.GlobalShadows = false
+	end
+end
+
+local function setEffectsEnabled(state)
+	for _, e in ipairs({bloom, cc, rays, dof}) do
+		if e then e.Enabled = state end
+	end
+	if atmo then
+		if state then
+			atmo.Density = CFG.NightMode and 0.5 or 0.4
+		else
+			atmo.Density = 0
+		end
+	end
+end
+
+local function applyTime(night)
+	if night then
+		Lighting.ClockTime = 0
+		Lighting.GeographicLatitude = 45
+		Lighting.Brightness = 0.4
+		Lighting.Ambient = Color3.fromRGB(25, 30, 55)
+		Lighting.OutdoorAmbient = Color3.fromRGB(40, 50, 85)
+		atmo.Color = Color3.fromRGB(45, 55, 90)
+		atmo.Decay = Color3.fromRGB(20, 25, 45)
+		atmo.Density = 0.5
+		cc.Brightness = -0.03
+		cc.TintColor = Color3.fromRGB(215, 225, 255)
+		bloom.Intensity = 0.8
+		rays.Intensity = 0
+	else
+		Lighting.ClockTime = 17.5
+		Lighting.GeographicLatitude = 35
+		Lighting.Brightness = 2
+		Lighting.Ambient = Color3.fromRGB(40, 44, 55)
+		Lighting.OutdoorAmbient = Color3.fromRGB(90, 96, 110)
+		atmo.Color = Color3.fromRGB(199, 215, 235)
+		atmo.Decay = Color3.fromRGB(110, 130, 160)
+		atmo.Density = 0.4
+		cc.Brightness = 0.02
+		cc.TintColor = Color3.fromRGB(255, 246, 235)
+		bloom.Intensity = 0.45
+		rays.Intensity = 0.15
+	end
+end
+
+setupEffects()
+applyQuality(CFG.HighQuality)
+applyTime(CFG.NightMode)
+setEffectsEnabled(CFG.EffectsEnabled)
+
+local snowPart = Instance.new("Part")
+snowPart.Name = "SnowEmitter"
+snowPart.Size = Vector3.new(400, 1, 400)
+snowPart.Transparency = 1
+snowPart.Anchored = true
+snowPart.CanCollide = false
+snowPart.CanTouch = false
+snowPart.CanQuery = false
+snowPart.CastShadow = false
+snowPart.Parent = Workspace
+
+local snow = Instance.new("ParticleEmitter")
+snow.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+snow.Color = ColorSequence.new(Color3.fromRGB(245, 250, 255))
+snow.LightEmission = 0.3
+snow.Size = NumberSequence.new(0.35, 0.35)
+snow.Transparency = NumberSequence.new({
+	NumberSequenceKeypoint.new(0, 0.1),
+	NumberSequenceKeypoint.new(0.9, 0.2),
+	NumberSequenceKeypoint.new(1, 1),
+})
+snow.Lifetime = NumberRange.new(10, 14)
+snow.Rate = 220
+snow.Speed = NumberRange.new(4, 7)
+snow.SpreadAngle = Vector2.new(15, 15)
+snow.EmissionDirection = Enum.NormalId.Bottom
+snow.Acceleration = Vector3.new(2, 0, 1)
+snow.RotSpeed = NumberRange.new(-40, 40)
+snow.Rotation = NumberRange.new(0, 360)
+snow.Parent = snowPart
+
+snow.Enabled = CFG.SnowEnabled
+
+track(RunService.Heartbeat:Connect(function()
+	local char = LP.Character
+	local hrp = char and char:FindFirstChild("HumanoidRootPart")
+	if hrp then
+		snowPart.CFrame = CFrame.new(hrp.Position + Vector3.new(0, 60, 0))
+	end
+end))
+
+local aura = {}
+
+local function clearAura()
+	for _, obj in ipairs(aura) do
+		if obj and obj.Parent then obj:Destroy() end
+	end
+	aura = {}
+end
+
+local function buildAura(character)
+	clearAura()
+	if not CFG.AuraEnabled then return end
+
+	local hrp = character:WaitForChild("HumanoidRootPart")
+	local head = character:WaitForChild("Head")
+	local color = auraColors[CFG.AuraColorIndex]
+	local wingOffset = CFrame.new(0, 0.3, 0.6)
+	local hatOffset = CFrame.new(0, 0.85, 0)
+
+	local wings = Instance.new("MeshPart")
+	wings.MeshId = WINGS_ID
+	wings.Size = Vector3.new(3, 3, 1)
+	wings.Material = Enum.Material.Neon
+	wings.Color = color
+	wings.Transparency = 0.25
+	wings.CanCollide = false
+	wings.CanTouch = false
+	wings.CanQuery = false
+	wings.Massless = true
+	wings.CastShadow = false
+	wings.CFrame = hrp.CFrame * wingOffset
+	wings.Parent = character
+
+	local wingWeld = Instance.new("Weld")
+	wingWeld.Part0 = hrp
+	wingWeld.Part1 = wings
+	wingWeld.C0 = wingOffset
+	wingWeld.Parent = hrp
+
+	local hat = Instance.new("MeshPart")
+	hat.MeshId = HAT_ID
+	hat.Size = Vector3.new(1.2, 1.2, 1.2)
+	hat.Material = Enum.Material.Neon
+	hat.Color = color
+	hat.Transparency = 0.1
+	hat.CanCollide = false
+	hat.CanTouch = false
+	hat.CanQuery = false
+	hat.Massless = true
+	hat.CastShadow = false
+	hat.CFrame = head.CFrame * hatOffset
+	hat.Parent = character
+
+	local hatWeld = Instance.new("Weld")
+	hatWeld.Part0 = head
+	hatWeld.Part1 = hat
+	hatWeld.C0 = hatOffset
+	hatWeld.Parent = head
+
+	local light = Instance.new("PointLight")
+	light.Color = color
+	light.Range = 6
+	light.Parent = hrp
+
+	local sparks = Instance.new("ParticleEmitter")
+	sparks.Texture = "rbxasset://textures/particles/sparkles_main.dds"
+	sparks.Color = ColorSequence.new(color, Color3.fromRGB(255, 230, 160))
+	sparks.LightEmission = 1
+	sparks.Size = NumberSequence.new(0.15, 0)
+	sparks.Lifetime = NumberRange.new(0.8, 1.4)
+	sparks.Rate = 40
+	sparks.Speed = NumberRange.new(1, 3)
+	sparks.SpreadAngle = Vector2.new(180, 180)
+	sparks.Parent = hrp
+
+	table.insert(aura, wings)
+	table.insert(aura, wingWeld)
+	table.insert(aura, hat)
+	table.insert(aura, hatWeld)
+	table.insert(aura, light)
+	table.insert(aura, sparks)
+
+	local t0 = os.clock()
+	local conn
+	conn = RunService.Heartbeat:Connect(function()
+		if not wings.Parent or not hrp.Parent then
+			conn:Disconnect()
+			return
+		end
+		local t = os.clock() - t0
+		wings.Transparency = 0.2 + (math.sin(t * 3) + 1) * 0.15
+		wingWeld.C0 = CFrame.new(0, 0.3 + math.sin(t * 2) * 0.05, 0.6)
+			* CFrame.Angles(0, 0, math.rad(math.sin(t * 2) * 4))
+		light.Brightness = CFG.AuraBrightness + math.sin(t * 3) * 0.5
+	end)
+	table.insert(aura, {Destroy = function() conn:Disconnect() end})
+end
+
+local function refreshAura()
+	if LP.Character then
+		buildAura(LP.Character)
+	end
+end
+
+LP.CharacterAdded:Connect(function(char)
+	task.wait(1)
+	if CFG.AuraEnabled then buildAura(char) end
+end)
 
 local cP = card(pages["Visuals"], "Player")
 toggle(cP, "Player Forcefield", "PlayerFF")
 toggle(cP, "Orange Color", "PlayerFFOrange")
 
+local cAura = card(pages["Visuals"], "Cosmetics & Effects")
+toggle(cAura, "Aura (Wings + Hat)", "AuraEnabled", function() refreshAura() end)
+
+button(cAura, "Change Aura Color", function()
+	CFG.AuraColorIndex = CFG.AuraColorIndex % #auraColors + 1
+	refreshAura()
+end)
+
+button(cAura, "Aura Brightness +", function()
+	CFG.AuraBrightness = math.min(CFG.AuraBrightness + 0.5, 6)
+	refreshAura()
+end)
+
+button(cAura, "Aura Brightness -", function()
+	CFG.AuraBrightness = math.max(CFG.AuraBrightness - 0.5, 0)
+	refreshAura()
+end)
+
+toggle(cAura, "Graphics Effects", "EffectsEnabled", function(on)
+	setEffectsEnabled(on)
+end)
+
+button(cAura, "Quality: Realism/Light", function()
+	CFG.HighQuality = not CFG.HighQuality
+	applyQuality(CFG.HighQuality)
+end)
+
+button(cAura, "Toggle Night Mode", function()
+	CFG.NightMode = not CFG.NightMode
+	applyTime(CFG.NightMode)
+end)
+
+toggle(cAura, "Snow", "SnowEnabled", function(on)
+	snow.Enabled = on
+end)
+
 local cK = card(pages["Visuals"], "Knife Visual")
 local modeRow = make("Frame", {Size = UDim2.new(1, 0, 0, 30), BackgroundTransparency = 1, LayoutOrder = nextOrder(cK)}, cK)
 make("UIListLayout", {FillDirection = Enum.FillDirection.Horizontal, Padding = UDim.new(0, 6), SortOrder = Enum.SortOrder.LayoutOrder}, modeRow)
-
 local modeBtns = {}
+
 local function setMode(m, silent)
 	CFG.KnifeMode = m
 	for id, b in pairs(modeBtns) do tween(b, 0.25, {BackgroundColor3 = id == m and T.Accent or T.Off}) end
@@ -1055,13 +1291,8 @@ slider(c3, "Delay", "KillDelay", 0, 10, "s")
 
 local cS = card(pages["Combat"], "Shoot System")
 toggle(cS, "Wallbang (Сквозь стены)", "Wallbang")
-
-button(cS, "Показать кнопку [Murder]", function()
-	shootMurdFloat.Visible = not shootMurdFloat.Visible
-end)
-button(cS, "Показать кнопку [Sheriff]", function()
-	shootSherFloat.Visible = not shootSherFloat.Visible
-end)
+button(cS, "Показать кнопку [Murder]", function() shootMurdFloat.Visible = not shootMurdFloat.Visible end)
+button(cS, "Показать кнопку [Sheriff]", function() shootSherFloat.Visible = not shootSherFloat.Visible end)
 
 local c4 = card(pages["Player"], "Role")
 local roleLbl = make("TextLabel", {Size = UDim2.new(1, 0, 0, 24), BackgroundTransparency = 1, LayoutOrder = 1, Text = "Innocent", Font = T.FontBold, TextSize = 18, TextColor3 = T.Good, TextXAlignment = Enum.TextXAlignment.Left}, c4)
@@ -1093,7 +1324,13 @@ toggle(cMisc, "Fullbright", "Fullbright", applyFullbright)
 toggle(cMisc, "Walk Speed", "WalkOn")
 slider(cMisc, "WalkSpeed", "WalkSpeed", 16, 300, "")
 
-task.spawn(function() while running do local c = LP.Character; local hum = c and c:FindFirstChildOfClass("Humanoid"); if hum and CFG.WalkOn and hum.WalkSpeed ~= CFG.WalkSpeed then hum.WalkSpeed = CFG.WalkSpeed end; task.wait(0.2) end end)
+task.spawn(function()
+	while running do
+		local c = LP.Character; local hum = c and c:FindFirstChildOfClass("Humanoid");
+		if hum and CFG.WalkOn and hum.WalkSpeed ~= CFG.WalkSpeed then hum.WalkSpeed = CFG.WalkSpeed end
+		task.wait(0.2)
+	end
+end)
 
 local noclipSaved = setmetatable({}, {__mode = "k"})
 local function setNoclip(on)
@@ -1105,7 +1342,12 @@ local function setNoclip(on)
 		end
 	end
 end
-track(RunService.Stepped:Connect(function() if not running or not CFG.Noclip or flingThread then return end; local c = LP.Character; if not c then return end; for _, p in ipairs(c:GetDescendants()) do if p:IsA("BasePart") and p.CanCollide then if noclipSaved[p] == nil then noclipSaved[p] = true end; p.CanCollide = false end end end))
+
+track(RunService.Stepped:Connect(function()
+	if not running or not CFG.Noclip or flingThread then return end
+	local c = LP.Character; if not c then return end
+	for _, p in ipairs(c:GetDescendants()) do if p:IsA("BasePart") and p.CanCollide then if noclipSaved[p] == nil then noclipSaved[p] = true end; p.CanCollide = false end end
+end))
 
 local cMove = card(pages["Player"], "Movement")
 toggle(cMove, "Noclip", "Noclip", function(on) if not on then setNoclip(false) end end)
@@ -1124,12 +1366,11 @@ slider(c8, "Transparency", "Transp", 0, 80, "%", applyTransp)
 button(c8, "Hide Menu (RShift)", function() setVisible(false) end)
 button(c8, "Unload Script", function() unload() end)
 
--- Main Logic ---------------------------------------------------------------
-
 local openBtn = make("TextButton", {Size = UDim2.fromOffset(150, 30), Position = UDim2.new(0.5, -75, 0, 8), BackgroundColor3 = T.Accent, AutoButtonColor = false, BorderSizePixel = 0, Text = "", Visible = false}, gui)
 radius(openBtn, 15); make("UIGradient", {Color = ColorSequence.new(T.Accent, T.Accent2), Rotation = 90}, openBtn)
 local openGlow = make("UIStroke", {Color = T.Accent2, Thickness = 2, Transparency = 0.45}, openBtn)
 local openScale = make("UIScale", {}, openBtn)
+
 local openDot = make("Frame", {Size = UDim2.fromOffset(7, 7), Position = UDim2.fromOffset(14, 11.5), BackgroundColor3 = Color3.new(1, 1, 1), BorderSizePixel = 0}, openBtn)
 radius(openDot, 4)
 local openLbl = make("TextLabel", {Size = UDim2.new(1, -32, 1, 0), Position = UDim2.fromOffset(28, 0), BackgroundTransparency = 1, Text = "Open", Font = T.FontBold, TextSize = 12, TextColor3 = Color3.new(1, 1, 1), TextXAlignment = Enum.TextXAlignment.Left}, openBtn)
@@ -1137,7 +1378,13 @@ local openLbl = make("TextLabel", {Size = UDim2.new(1, -32, 1, 0), Position = UD
 openBtn.MouseEnter:Connect(function() tween(openScale, 0.2, {Scale = 1.06}); tween(openGlow, 0.2, {Transparency = 0}) end)
 openBtn.MouseLeave:Connect(function() tween(openScale, 0.3, {Scale = 1}, Enum.EasingStyle.Back); tween(openGlow, 0.3, {Transparency = 0.45}) end)
 
-task.spawn(function() while running and openDot.Parent do tween(openDot, 0.9, {BackgroundTransparency = 0.7}, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut); task.wait(0.9); if not running or not openDot.Parent then break end; tween(openDot, 0.9, {BackgroundTransparency = 0}, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut); task.wait(0.9) end end)
+task.spawn(function()
+	while running and openDot.Parent do
+		tween(openDot, 0.9, {BackgroundTransparency = 0.7}, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut); task.wait(0.9)
+		if not running or not openDot.Parent then break end
+		tween(openDot, 0.9, {BackgroundTransparency = 0}, Enum.EasingStyle.Sine, Enum.EasingDirection.InOut); task.wait(0.9)
+	end
+end)
 
 setVisible = function(v)
 	if v and not CFG.KeyUnlocked then return end
@@ -1154,7 +1401,6 @@ end
 
 openBtn.MouseButton1Click:Connect(function() setVisible(not isOpen) end)
 closeBtn.MouseButton1Click:Connect(function() setVisible(false) end)
-
 track(UIS.InputBegan:Connect(function(i, gp) if not gp and i.KeyCode == Enum.KeyCode.RightShift then setVisible(not isOpen) end end))
 
 local fpsCount, fpsTimer, fpsShown = 0, 0, 0
@@ -1167,23 +1413,33 @@ track(RunService.RenderStepped:Connect(function(dt)
 	end
 end))
 
-task.spawn(function() while running and roleLbl.Parent do local r = roleOf(LP); roleLbl.Text = r; roleLbl.TextColor3 = roleColors[r] or T.Text; task.wait(1) end end)
+task.spawn(function()
+	while running and roleLbl.Parent do
+		local r = roleOf(LP); roleLbl.Text = r; roleLbl.TextColor3 = roleColors[r] or T.Text
+		task.wait(1)
+	end
+end)
 
 unload = function()
 	running = false
 	stopFling(); stopCandyFly(); restoreKnife()
 	if lightOrig then applyFullbright(false) end
+	clearAura()
+	snowPart:Destroy()
+	bloom:Destroy()
+	cc:Destroy()
+	rays:Destroy()
+	atmo:Destroy()
+	dof:Destroy()
 	for _, c in ipairs(conns) do c:Disconnect() end
 	blur:Destroy(); gui:Destroy()
 end
 
 setTab("Visuals", 1)
 
--- Key Gate -----------------------------------------------------------------
 local gate = panel(gui, 16, T.Panel, 0.04)
 gate.Size = UDim2.fromOffset(340, 214); gate.AnchorPoint = Vector2.new(0.5, 0.5); gate.Position = UDim2.fromScale(0.5, 0.5)
 local gateScale = make("UIScale", {}, gate)
-
 make("TextLabel", {Size = UDim2.new(1, -40, 0, 22), Position = UDim2.fromOffset(20, 18), BackgroundTransparency = 1, Text = "Draco Hub Access", Font = T.FontBold, TextSize = 16, TextColor3 = T.Text, TextXAlignment = Enum.TextXAlignment.Left}, gate)
 make("TextLabel", {Size = UDim2.new(1, -40, 0, 14), Position = UDim2.fromOffset(20, 40), BackgroundTransparency = 1, Text = "Enter license key", Font = T.Font, TextSize = 11, TextColor3 = T.Sub, TextXAlignment = Enum.TextXAlignment.Left}, gate)
 
@@ -1191,6 +1447,7 @@ local keyBox = make("TextBox", {Size = UDim2.new(1, -40, 0, 38), Position = UDim
 radius(keyBox, 9); make("UIPadding", {PaddingLeft = UDim.new(0, 12)}, keyBox)
 
 local gateMsg = make("TextLabel", {Size = UDim2.new(1, -40, 0, 14), Position = UDim2.fromOffset(20, 118), BackgroundTransparency = 1, Text = "", Font = T.Font, TextSize = 10, TextColor3 = T.Bad, TextXAlignment = Enum.TextXAlignment.Left}, gate)
+
 local checkBtn = make("TextButton", {Size = UDim2.new(1, -40, 0, 36), Position = UDim2.fromOffset(20, 142), BackgroundColor3 = T.Accent, AutoButtonColor = false, BorderSizePixel = 0, Text = "Check", Font = T.FontBold, TextSize = 12, TextColor3 = Color3.new(1, 1, 1)}, gate)
 radius(checkBtn, 9); make("UIGradient", {Color = ColorSequence.new(T.Accent, T.Accent2), Rotation = 90}, checkBtn); squish(checkBtn)
 
